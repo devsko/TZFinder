@@ -26,6 +26,7 @@
     <File Path="test/Directory.Build.targets" />
   </Folder>
   <Folder Name="/src/">
+    <Project Path="src/TZLocator.Builder/TZLocator.Builder.csproj" />
     <Project Path="src/TZLocator/TZLocator.csproj" />
   </Folder>
   <Folder Name="/test/">

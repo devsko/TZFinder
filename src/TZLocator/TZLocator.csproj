@@ -4,10 +4,15 @@
     <Description>Get IANA time zone id from geo location.</Description>
   </PropertyGroup>
 
+  <ItemGroup Condition="'$(TargetFramework)' == 'netstandard2.0'">
+    <PackageReference Include="System.Runtime.CompilerServices.Unsafe" />
+  </ItemGroup>
+
   <Target Name="PublishLocal" AfterTargets="Pack" Condition="'$(NUGET_LOCALFEED)' != '' and '$(ContinuousIntegrationBuild)' != 'true'">
     <ItemGroup>
       <NuGetPackages Include="@(NuGetPackOutput)" Condition="'%(Extension)' == '.nupkg'" />
     </ItemGroup>
     <Exec Command="dotnet nuget push %(NuGetPackages.Identity) --source $(NUGET_LOCALFEED)" />
   </Target>
+
 </Project>
