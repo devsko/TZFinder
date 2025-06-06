@@ -11,7 +11,7 @@ namespace TZLocator.Builder.Steps;
 public class SerializeTree : ConversionStep
 {
     /// <inheritdoc/>
-    public override string Name => "Serialize nodes";
+    public override string Name => "Writing data file";
 
     /// <inheritdoc/>
     protected override async IAsyncEnumerable<IResource> GetInputsAsync(BuilderContext context)

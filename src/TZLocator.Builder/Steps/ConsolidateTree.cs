@@ -13,7 +13,7 @@ namespace TZLocator.Builder.Steps;
 public class ConsolidateTree : ConversionStep
 {
     /// <inheritdoc/>
-    public override string Name => "Consolidate nodes";
+    public override string Name => "Consolidating nodes";
 
     /// <inheritdoc/>
     protected override bool ShowProgressAsDataSize => false;

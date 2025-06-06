@@ -37,8 +37,8 @@ public sealed partial class TimeZoneContext
     /// </para>
     /// </summary>
     /// <remarks>
-    /// The window is initialized with a span of positions, and assumes the ring is closed and contains at least four points.
-    /// The window exposes the following properties for the current window:
+    /// The window is initialized with a span of positions, and assumes the ring is closed and contains at least four points
+    /// (see <see cref="GetReducedPositionList"/>).
     /// </remarks>
     private ref struct RingDataWindow
     {
@@ -65,8 +65,8 @@ public sealed partial class TimeZoneContext
         public readonly Position J_1 => Unsafe.Add(ref Unsafe.AsRef(in _start), 3);
     }
 
-    private const int MaxLevel = 10;
-    private const float ReducedPositionDistance = 5_000f;
+    private const int MaxLevel = 25;
+    private const float ReducedPositionDistance = 500f;
 
     private static readonly Position Outside = GetOutside();
 
@@ -441,7 +441,7 @@ public sealed partial class TimeZoneContext
             {
                 Position2D<float> position = ring[i];
                 if ((Math.Abs(position.Latitude) > 70f && position != lastPosition) ||
-                    Distance(lastPosition.Latitude, lastPosition.Longitude, position.Latitude, position.Longitude) > ReducedPositionDistance)
+                    Distance(lastPosition, position) > ReducedPositionDistance)
                 {
                     yield return Unsafe.BitCast<Position2D<float>, Position>(position);
                     lastPosition = position;
@@ -454,17 +454,15 @@ public sealed partial class TimeZoneContext
     /// Calculates the great-circle distance in meters between two geographic coordinates
     /// specified by their latitudes and longitudes using the Haversine formula.
     /// </summary>
-    /// <param name="fromLat">The latitude of the starting point, in degrees.</param>
-    /// <param name="fromLon">The longitude of the starting point, in degrees.</param>
-    /// <param name="toLat">The latitude of the destination point, in degrees.</param>
-    /// <param name="toLon">The longitude of the destination point, in degrees.</param>
+    /// <param name="from">The coordinates of the starting point, in degrees.</param>
+    /// <param name="to">The coordinates of the destination point, in degrees.</param>
     /// <returns>The distance between the two points in meters.</returns>
-    private static float Distance(float fromLat, float fromLon, float toLat, float toLon)
+    private static float Distance(Position2D<float> from, Position2D<float> to)
     {
-        float lat1 = ToRadians(fromLat);
-        float lat2 = ToRadians(toLat);
-        float lon1 = ToRadians(fromLon);
-        float lon2 = ToRadians(toLon);
+        float lat1 = ToRadians(from.Latitude);
+        float lat2 = ToRadians(to.Latitude);
+        float lon1 = ToRadians(from.Longitude);
+        float lon2 = ToRadians(to.Longitude);
 
         float havLat = MathF.Pow(MathF.Sin((lat2 - lat1) / 2), 2);
         float havLon = MathF.Pow(MathF.Sin((lon2 - lon1) / 2), 2);
@@ -606,7 +604,7 @@ public sealed partial class TimeZoneContext
     /// lies exactly on the edge, the <paramref name="isOnEdge"/> flag is set to <see langword="true"/>.
     /// </para>
     /// </summary>
-    /// <remarks>see also https://youtu.be/PvUK52xiFZs?t=1270</remarks>
+    /// <remarks>see also https://youtu.be/PvUK52xiFZs?t=1270 for further explanation.</remarks>
     /// <param name="p">
     /// A <see cref="RingDataWindow"/> providing the current four-point window over the polygon ring.
     /// </param>

@@ -10,7 +10,7 @@ namespace TZLocator.Builder.Steps;
 public class CreateTree : ConversionStep
 {
     /// <inheritdoc/>
-    public override string Name => "Creating nodes for time zones";
+    public override string Name => "Processing time zones";
 
     /// <inheritdoc/>
     protected override bool ShowProgressAsDataSize => false;
