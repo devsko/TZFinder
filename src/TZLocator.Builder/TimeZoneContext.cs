@@ -22,7 +22,9 @@ public sealed partial class TimeZoneContext
     { }
 
     /// <summary>
+    /// <para>
     /// Provides a sliding window over a ring of geographic positions for efficient geometric operations.
+    /// </para>
     /// <para>
     /// The <see cref="RingDataWindow"/> is a <c>ref struct</c> that maintains a window of four consecutive positions
     /// (I_1, I, J, J_1) over a read-only span of <see cref="Position"/> values representing a closed ring (polygon).
@@ -37,12 +39,6 @@ public sealed partial class TimeZoneContext
     /// <remarks>
     /// The window is initialized with a span of positions, and assumes the ring is closed and contains at least four points.
     /// The window exposes the following properties for the current window:
-    /// <list type="bullet">
-    /// <item><description><see cref="I_1"/>: The position before the current edge start.</description></item>
-    /// <item><description><see cref="I"/>: The start position of the current edge.</description></item>
-    /// <item><description><see cref="J"/>: The end position of the current edge.</description></item>
-    /// <item><description><see cref="J_1"/>: The position after the current edge end.</description></item>
-    /// </list>
     /// </remarks>
     private ref struct RingDataWindow
     {
@@ -245,7 +241,7 @@ public sealed partial class TimeZoneContext
 
             void AddIndex(short index)
             {
-                if (!node.IndexRef.Add(index))
+                if (!node.Index.Add(index))
                 {
                     CollectionsMarshal.GetValueRefOrAddDefault(_multipleTimeZones, node, out _).Add(index);
                 }
@@ -283,7 +279,7 @@ public sealed partial class TimeZoneContext
 
             if (node.Hi is not null && node.Lo is not null)
             {
-                node.IndexRef = default;
+                node.Index = default;
                 (BBox hi, BBox lo) = box.Split(ref level);
                 Consolidate(node.Hi, index, outside, hi, level);
                 Consolidate(node.Lo, index, outside, lo, level);
@@ -296,11 +292,11 @@ public sealed partial class TimeZoneContext
                     GetArea(indices, _sources[nodeIndex], box, outside);
                 }
 
-                node.IndexRef = GetFinalIndex(indices);
+                node.Index = GetFinalIndex(indices);
             }
             else if (index.First != 0)
             {
-                node.IndexRef = new TimeZoneIndex(index.First);
+                node.Index = new TimeZoneIndex(index.First);
             }
 
             progress?.Report(++count);
@@ -485,7 +481,9 @@ public sealed partial class TimeZoneContext
     }
 
     /// <summary>
+    /// <para>
     /// Determines whether a given point is inside a closed geographic ring (polygon).
+    /// </para>
     /// <para>
     /// This method uses a winding number algorithm with edge detection to check if the specified <paramref name="point"/>
     /// lies within the polygon defined by <paramref name="ring"/>. The <paramref name="outside"/> parameter is used as a reference

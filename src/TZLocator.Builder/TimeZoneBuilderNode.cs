@@ -1,7 +1,7 @@
 ﻿// Copyright (c) devsko. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
-namespace TZLocator;
+namespace TZLocator.Builder;
 
 /// <summary>
 /// Represents a node in a time zone tree structure, holding a <see cref="TimeZoneIndex"/> and references to child nodes.
@@ -21,14 +21,9 @@ public sealed class TimeZoneBuilderNode
     public TimeZoneBuilderNode? Lo { get; internal set; }
 
     /// <summary>
-    /// Gets the <see cref="TimeZoneIndex"/> associated with this node.
-    /// </summary>
-    public TimeZoneIndex Index => _index;
-
-    /// <summary>
     /// Gets a reference to the <see cref="TimeZoneIndex"/> associated with this node.
     /// </summary>
-    internal ref TimeZoneIndex IndexRef => ref _index;
+    public ref TimeZoneIndex Index => ref _index;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="TimeZoneBuilderNode"/> class with the specified index.

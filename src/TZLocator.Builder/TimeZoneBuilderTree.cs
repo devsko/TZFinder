@@ -1,7 +1,7 @@
 ﻿// Copyright (c) devsko. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
-namespace TZLocator;
+namespace TZLocator.Builder;
 
 /// <summary>
 /// Represents a tree structure for efficiently locating time zones based on geographic coordinates.
