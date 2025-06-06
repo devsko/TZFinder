@@ -18,7 +18,7 @@ public static class TimeZoneTreeSerializer
     /// <param name="progress">An optional progress reporter for the number of nodes written.</param>
     public static void Serialize(TimeZoneBuilderTree tree, Stream stream, IProgress<int>? progress = null)
     {
-        using BinaryWriter writer = new(stream, Encoding.UTF8, leaveOpen: false);
+        using BinaryWriter writer = new(stream, Encoding.UTF8, leaveOpen: true);
 
         writer.Write((short)tree.TimeZoneNames.Length);
         foreach (string timeZone in tree.TimeZoneNames)

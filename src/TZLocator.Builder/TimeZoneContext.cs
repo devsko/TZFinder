@@ -65,7 +65,8 @@ public sealed partial class TimeZoneContext
         public readonly Position J_1 => Unsafe.Add(ref Unsafe.AsRef(in _start), 3);
     }
 
-    private const int MaxLevel = 25;
+    private const int MaxLevel = 10;
+    private const float ReducedPositionDistance = 5_000f;
 
     private static readonly Position Outside = GetOutside();
 
@@ -440,7 +441,7 @@ public sealed partial class TimeZoneContext
             {
                 Position2D<float> position = ring[i];
                 if ((Math.Abs(position.Latitude) > 70f && position != lastPosition) ||
-                    Distance(lastPosition.Latitude, lastPosition.Longitude, position.Latitude, position.Longitude) > 1_000f)
+                    Distance(lastPosition.Latitude, lastPosition.Longitude, position.Latitude, position.Longitude) > ReducedPositionDistance)
                 {
                     yield return Unsafe.BitCast<Position2D<float>, Position>(position);
                     lastPosition = position;

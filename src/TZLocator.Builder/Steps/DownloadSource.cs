@@ -2,8 +2,6 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 using System.IO.Compression;
-using System.Net.Http.Json;
-using System.Text.Json;
 using Spectre.Builder;
 
 namespace TZLocator.Builder.Steps;
@@ -11,33 +9,15 @@ namespace TZLocator.Builder.Steps;
 /// <summary>
 /// Represents a conversion step that downloads the time zone boundary file from the timezone-boundary-builder GitHub repository.
 /// </summary>
-public partial class DownloadSource(string path, string release = "latest") : ConversionStep
+public partial class DownloadSource : ConversionStep
 {
-    private const string Repository = "evansiroky/timezone-boundary-builder";
-
-    private readonly HttpClient _client = CreateClient();
-
-    private static HttpClient CreateClient()
-    {
-        HttpClient client = new();
-        client.DefaultRequestHeaders.Add("User-Agent", "Nbrounter.Map");
-
-        return client;
-    }
-
     /// <inheritdoc/>
     public override string Name => "Download time zone file";
 
     /// <inheritdoc/>
     protected override async IAsyncEnumerable<IResource> GetOutputsAsync(BuilderContext context)
     {
-        if (release == "latest")
-        {
-            JsonElement latestRelease = await _client.GetFromJsonAsync<JsonElement>($"https://api.github.com/repos/{Repository}/releases/latest");
-            release = latestRelease.GetProperty("tag_name").GetString()!;
-        }
-
-        yield return ((Context)context).InitSourceFile(path.Replace("{release}", release));
+        yield return ((Context)context).SourceFile;
     }
 
     /// <inheritdoc/>
@@ -45,8 +25,8 @@ public partial class DownloadSource(string path, string release = "latest") : Co
     {
         FileResource sourceFile = ((Context)context).SourceFile;
 
-        using HttpResponseMessage response = await _client.GetAsync(
-            $"https://github.com/{Repository}/releases/download/{release}/{Path.GetFileName(path.Replace("{release}", ""))}.zip",
+        using HttpResponseMessage response = await ((Context)context).Client.GetAsync(
+            $"https://github.com/{Context.TimeZoneRepository}/releases/download/{((Context)context).TimeZoneRelease}/{Context.TimeZoneFileName}.zip",
             HttpCompletionOption.ResponseHeadersRead);
 
         if (!response.IsSuccessStatusCode)
@@ -64,7 +44,13 @@ public partial class DownloadSource(string path, string release = "latest") : Co
                 ZipArchiveMode.Read, leaveOpen: false, entryNameEncoding: null);
 
             ZipArchiveEntry? entry = zip.Entries[0] ?? throw new InvalidOperationException();
-            await entry.ExtractToFileAsync(sourceFile.Path);
+
+            await using PreliminaryFileStream fileStream = sourceFile.OpenCreate(0, timestamp);
+            await using Stream entryStream = await entry.OpenAsync();
+
+            await entryStream.CopyToAsync(fileStream);
+
+            fileStream.Persist();
         }
     }
 }

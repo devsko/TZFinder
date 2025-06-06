@@ -1,4 +1,5 @@
-﻿using Spectre.Builder;
+﻿using System.IO.Compression;
+using Spectre.Builder;
 
 namespace TZLocator.Builder.Steps;
 
@@ -7,8 +8,7 @@ namespace TZLocator.Builder.Steps;
 /// This step takes the consolidated <see cref="TimeZoneBuilderTree"/> from the build context and serializes it
 /// to a file at the specified path.
 /// </summary>
-/// <param name="path">The file path where the serialized time zone tree will be written.</param>
-public class SerializeTree(string path) : ConversionStep
+public class SerializeTree : ConversionStep
 {
     /// <inheritdoc/>
     public override string Name => "Serialize nodes";
@@ -16,26 +16,34 @@ public class SerializeTree(string path) : ConversionStep
     /// <inheritdoc/>
     protected override async IAsyncEnumerable<IResource> GetInputsAsync(BuilderContext context)
     {
-        yield return ((Context)context).ConsolidatedTimeZoneTree;
+        yield return ((Context)context).SourceFile;
     }
 
     /// <inheritdoc/>
     protected override async IAsyncEnumerable<IResource> GetOutputsAsync(BuilderContext context)
     {
-        yield return ((Context)context).InitTimeZoneFile(path);
+        yield return ((Context)context).TimeZoneFile;
     }
 
     /// <inheritdoc/>
     protected override async Task ExecuteAsync(BuilderContext context, DateTime timestamp)
     {
-        TimeZoneBuilderTree timeZoneTree = ((Context)context).ConsolidatedTimeZoneTree.Value ?? throw new InvalidOperationException();
-        TimeZoneContext timeZoneContext = ((Context)context).TimeZoneContext.Value ?? throw new InvalidOperationException();
+        TimeZoneBuilderTree timeZoneTree = ((Context)context).TimeZoneTree ?? throw new InvalidOperationException();
+        TimeZoneContext timeZoneContext = ((Context)context).TimeZoneContext ?? throw new InvalidOperationException();
         FileResource timeZoneFile = ((Context)context).TimeZoneFile;
 
-        context.SetTotal(this, timeZoneContext.NodeCount);
+        await using PreliminaryFileStream file = timeZoneFile.OpenCreate(0, timestamp);
 
-        await using PreliminaryFileStream stream = timeZoneFile.OpenCreate(1024 * 1024, timestamp);
-        TimeZoneTreeSerializer.Serialize(timeZoneTree, stream, new Progress<int>(nodes => context.SetProgress(this, nodes)));
-        stream.Persist();
+        // GZipStream cannot be flushed and tries to write when disposed
+        await using (GZipStream stream = new GZipStream(
+            new ProgressStream(
+                file,
+                bytes => context.IncrementProgress(this, bytes)),
+            CompressionLevel.Optimal, leaveOpen: true))
+        {
+            TimeZoneTreeSerializer.Serialize(timeZoneTree, stream);
+        }
+
+        file.Persist();
     }
 }

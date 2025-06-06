@@ -10,31 +10,31 @@ namespace TZLocator.Builder.Steps;
 public class CreateTree : ConversionStep
 {
     /// <inheritdoc/>
-    public override string Name => "Creating time zone nodes";
+    public override string Name => "Creating nodes for time zones";
 
     /// <inheritdoc/>
-    public override ProgressType Type => ProgressType.ValueRaw;
+    protected override bool ShowProgressAsDataSize => false;
 
     /// <inheritdoc/>
     protected override async IAsyncEnumerable<IResource> GetInputsAsync(BuilderContext context)
     {
-        yield return ((Context)context).TimeZoneContext;
+        yield return ((Context)context).SourceFile;
     }
 
     /// <inheritdoc/>
     protected override async IAsyncEnumerable<IResource> GetOutputsAsync(BuilderContext context)
     {
-        yield return ((Context)context).InitTimeZoneTree();
+        yield return ((Context)context).TimeZoneCalculation;
     }
 
     /// <inheritdoc/>
     protected override Task ExecuteAsync(BuilderContext context, DateTime timestamp)
     {
-        TimeZoneContext timeZoneContext = ((Context)context).TimeZoneContext.Value ?? throw new InvalidOperationException();
+        TimeZoneContext timeZoneContext = ((Context)context).TimeZoneContext ?? throw new InvalidOperationException();
 
         context.SetTotal(this, timeZoneContext.Sources.Count);
 
-        ((Context)context).TimeZoneTree.Set(timeZoneContext.CreateTree(new Progress<int>(sources => context.SetProgress(this, sources))));
+        ((Context)context).TimeZoneTree = timeZoneContext.CreateTree(new Progress<int>(sources => context.SetProgress(this, sources)));
 
         return Task.CompletedTask;
     }

@@ -1,4 +1,7 @@
-﻿using Spectre.Builder;
+﻿using System.Diagnostics.CodeAnalysis;
+using System.Net.Http.Json;
+using System.Text.Json;
+using Spectre.Builder;
 
 namespace TZLocator.Builder;
 
@@ -8,59 +11,78 @@ namespace TZLocator.Builder;
 public class Context : BuilderContext
 {
     /// <summary>
+    /// The GitHub repository for the timezone boundary builder.
+    /// </summary>
+    public const string TimeZoneRepository = "evansiroky/timezone-boundary-builder";
+
+    /// <summary>
+    /// The file name for the time zone GeoJSON file.
+    /// </summary>
+    public const string TimeZoneFileName = "timezones.geojson";
+
+    /// <summary>
+    /// Gets the <see cref="HttpClient"/> used for HTTP requests.
+    /// </summary>
+    public HttpClient Client { get; } = CreateClient();
+
+    /// <summary>
+    /// Gets the tag name of the latest time zone release.
+    /// </summary>
+    public string? TimeZoneRelease { get; private set; }
+
+    /// <summary>
+    /// Gets or sets the <see cref="TimeZoneContext"/> for the current run.
+    /// </summary>
+    public TimeZoneContext? TimeZoneContext { get; set; }
+
+    /// <summary>
+    /// Gets or sets the <see cref="TimeZoneBuilderTree"/> for the current run.
+    /// </summary>
+    public TimeZoneBuilderTree? TimeZoneTree { get; set; }
+
+    /// <summary>
     /// Gets the <see cref="FileResource"/> representing the source file.
     /// </summary>
-    public FileResource SourceFile => GetFileResource(nameof(SourceFile));
-
-    /// <summary>
-    /// Initializes the <see cref="SourceFile"/> resource with the specified path.
-    /// </summary>
-    /// <param name="path">The path to the source file.</param>
-    /// <returns>The initialized <see cref="FileResource"/>.</returns>
-    public FileResource InitSourceFile(string path) => AddResource(nameof(SourceFile), new FileResource(path));
-
-    /// <summary>
-    /// Gets the <see cref="Resource{TimeZoneContext}"/> representing the time zone context.
-    /// </summary>
-    public Resource<TimeZoneContext> TimeZoneContext => GetResource<TimeZoneContext>(nameof(TimeZoneContext));
-
-    /// <summary>
-    /// Initializes the <see cref="TimeZoneContext"/> resource.
-    /// </summary>
-    /// <returns>The initialized <see cref="Resource{TimeZoneContext}"/>.</returns>
-    public Resource<TimeZoneContext> InitTimeZoneContext() => AddResource(nameof(TimeZoneContext), new Resource<TimeZoneContext>(SourceFile));
-
-    /// <summary>
-    /// Gets the <see cref="Resource{TimeZoneBuilderTree}"/> representing the time zone builder tree.
-    /// </summary>
-    public Resource<TimeZoneBuilderTree> TimeZoneTree => GetResource<TimeZoneBuilderTree>(nameof(TimeZoneTree));
-
-    /// <summary>
-    /// Initializes the <see cref="TimeZoneTree"/> resource.
-    /// </summary>
-    /// <returns>The initialized <see cref="Resource{TimeZoneBuilderTree}"/>.</returns>
-    public Resource<TimeZoneBuilderTree> InitTimeZoneTree() => AddResource(nameof(TimeZoneTree), new Resource<TimeZoneBuilderTree>(TimeZoneContext));
-
-    /// <summary>
-    /// Gets the <see cref="Resource{TimeZoneBuilderTree}"/> representing the consolidated time zone builder tree.
-    /// </summary>
-    public Resource<TimeZoneBuilderTree> ConsolidatedTimeZoneTree => GetResource<TimeZoneBuilderTree>(nameof(ConsolidatedTimeZoneTree));
-
-    /// <summary>
-    /// Initializes the <see cref="ConsolidatedTimeZoneTree"/> resource.
-    /// </summary>
-    /// <returns>The initialized <see cref="Resource{TimeZoneBuilderTree}"/>.</returns>
-    public Resource<TimeZoneBuilderTree> InitConsolidatedTimeZoneTree() => AddResource(nameof(ConsolidatedTimeZoneTree), new Resource<TimeZoneBuilderTree>(TimeZoneTree));
+    [AllowNull]
+    public FileResource SourceFile { get; private set; }
 
     /// <summary>
     /// Gets the <see cref="FileResource"/> representing the time zone file.
     /// </summary>
-    public FileResource TimeZoneFile => GetFileResource(nameof(TimeZoneFile));
+    [AllowNull]
+    public FileResource TimeZoneFile { get; private set; }
 
     /// <summary>
-    /// Initializes the <see cref="TimeZoneFile"/> resource with the specified path.
+    /// Gets the <see cref="CalculationResource"/> representing the time zone calculation resource.
     /// </summary>
-    /// <param name="path">The path to the time zone file.</param>
-    /// <returns>The initialized <see cref="FileResource"/>.</returns>
-    public FileResource InitTimeZoneFile(string path) => AddResource(nameof(TimeZoneFile), new FileResource(path));
+    [AllowNull]
+    public CalculationResource TimeZoneCalculation { get; private set; }
+
+    /// <inheritdoc/>
+    protected override async Task InitializeAsync()
+    {
+        TimeZoneRelease = await GetLatestReleaseAsync();
+
+        string baseAppDataPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "TZLocator");
+        Directory.CreateDirectory(baseAppDataPath);
+
+        SourceFile = new FileResource(Path.Combine(baseAppDataPath, $"{TimeZoneRelease}{TimeZoneFileName}"));
+        TimeZoneFile = new FileResource(Path.Combine(baseAppDataPath, "TimeZones.tree"));
+        TimeZoneCalculation = new CalculationResource(TimeZoneFile);
+
+        async Task<string> GetLatestReleaseAsync()
+        {
+            JsonElement latestRelease = await Client.GetFromJsonAsync<JsonElement>($"https://api.github.com/repos/{TimeZoneRepository}/releases/latest");
+
+            return latestRelease.GetProperty("tag_name").GetString()!;
+        }
+    }
+
+    private static HttpClient CreateClient()
+    {
+        HttpClient client = new();
+        client.DefaultRequestHeaders.Add("User-Agent", "Nbrounter.Map");
+
+        return client;
+    }
 }

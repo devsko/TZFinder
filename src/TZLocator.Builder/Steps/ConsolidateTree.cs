@@ -16,30 +16,29 @@ public class ConsolidateTree : ConversionStep
     public override string Name => "Consolidate nodes";
 
     /// <inheritdoc/>
-    public override ProgressType Type => ProgressType.ValueRaw;
+    protected override bool ShowProgressAsDataSize => false;
 
     /// <inheritdoc/>
     protected override async IAsyncEnumerable<IResource> GetInputsAsync(BuilderContext context)
     {
-        yield return ((Context)context).TimeZoneTree;
+        yield return ((Context)context).SourceFile;
     }
 
     /// <inheritdoc/>
     protected override async IAsyncEnumerable<IResource> GetOutputsAsync(BuilderContext context)
     {
-        yield return ((Context)context).InitConsolidatedTimeZoneTree();
+        yield return ((Context)context).TimeZoneCalculation;
     }
 
     /// <inheritdoc/>
     protected override Task ExecuteAsync(BuilderContext context, DateTime timestamp)
     {
-        TimeZoneBuilderTree timeZoneTree = ((Context)context).TimeZoneTree.Value ?? throw new InvalidOperationException();
-        TimeZoneContext timeZoneContext = ((Context)context).TimeZoneContext.Value ?? throw new InvalidOperationException();
+        TimeZoneBuilderTree timeZoneTree = ((Context)context).TimeZoneTree ?? throw new InvalidOperationException();
+        TimeZoneContext timeZoneContext = ((Context)context).TimeZoneContext ?? throw new InvalidOperationException();
 
         context.SetTotal(this, timeZoneContext.NodeCount);
 
         timeZoneContext.Consolidate(timeZoneTree, new Progress<int>(nodes => context.SetProgress(this, nodes)));
-        ((Context)context).ConsolidatedTimeZoneTree.Set(timeZoneTree);
 
         return Task.CompletedTask;
     }

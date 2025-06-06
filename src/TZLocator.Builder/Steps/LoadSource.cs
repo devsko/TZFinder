@@ -20,7 +20,7 @@ public class LoadSource : ConversionStep
     /// <inheritdoc/>
     protected override async IAsyncEnumerable<IResource> GetOutputsAsync(BuilderContext context)
     {
-        yield return ((Context)context).InitTimeZoneContext();
+        yield return ((Context)context).TimeZoneCalculation;
     }
 
     /// <inheritdoc/>
@@ -32,6 +32,6 @@ public class LoadSource : ConversionStep
 
         context.SetTotal(this, content.Length);
 
-        ((Context)context).TimeZoneContext.Set(await TimeZoneContext.LoadAsync(content));
+        ((Context)context).TimeZoneContext = await TimeZoneContext.LoadAsync(content);
     }
 }
