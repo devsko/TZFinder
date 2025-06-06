@@ -24,14 +24,16 @@ public class LoadSource : ConversionStep
     }
 
     /// <inheritdoc/>
-    protected override async Task ExecuteAsync(BuilderContext context, DateTime timestamp)
+    protected override async Task ExecuteAsync(BuilderContext builderContext, DateTime timestamp)
     {
-        FileResource sourceFile = ((Context)context).SourceFile;
+        Context context = (Context)builderContext;
+
+        FileResource sourceFile = context.SourceFile;
 
         await using ProgressStream content = new(sourceFile.OpenRead(0), bytes => context.IncrementProgress(this, bytes));
 
         context.SetTotal(this, content.Length);
 
-        ((Context)context).TimeZoneContext = await TimeZoneContext.LoadAsync(content);
+        context.TimeZoneContext = await TimeZoneContext.LoadAsync(content);
     }
 }

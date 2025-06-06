@@ -41,6 +41,11 @@ public class Context : BuilderContext
     public TimeZoneBuilderTree? TimeZoneTree { get; set; }
 
     /// <summary>
+    /// Gets or sets the number of nodes in the time zone builder tree.
+    /// </summary>
+    public int NodeCount { get; set; }
+
+    /// <summary>
     /// Gets the <see cref="FileResource"/> representing the source file.
     /// </summary>
     [AllowNull]

@@ -21,12 +21,14 @@ public partial class DownloadSource : ConversionStep
     }
 
     /// <inheritdoc/>
-    protected override async Task ExecuteAsync(BuilderContext context, DateTime timestamp)
+    protected override async Task ExecuteAsync(BuilderContext builderContext, DateTime timestamp)
     {
-        FileResource sourceFile = ((Context)context).SourceFile;
+        Context context = (Context)builderContext;
 
-        using HttpResponseMessage response = await ((Context)context).Client.GetAsync(
-            $"https://github.com/{Context.TimeZoneRepository}/releases/download/{((Context)context).TimeZoneRelease}/{Context.TimeZoneFileName}.zip",
+        FileResource sourceFile = context.SourceFile;
+
+        using HttpResponseMessage response = await context.Client.GetAsync(
+            $"https://github.com/{Context.TimeZoneRepository}/releases/download/{context.TimeZoneRelease}/{Context.TimeZoneFileName}.zip",
             HttpCompletionOption.ResponseHeadersRead);
 
         if (!response.IsSuccessStatusCode)

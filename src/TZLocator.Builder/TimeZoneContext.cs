@@ -75,11 +75,6 @@ public sealed partial class TimeZoneContext
     private readonly Dictionary<short, TimeZoneSource> _sources = [];
 
     /// <summary>
-    /// Gets the number of nodes in the time zone builder tree.
-    /// </summary>
-    public int NodeCount { get; private set; }
-
-    /// <summary>
     /// Gets a collection of all <see cref="TimeZoneSource"/> objects loaded in this context.
     /// </summary>
     public ICollection<TimeZoneSource> Sources => _sources.Values;
@@ -178,18 +173,18 @@ public sealed partial class TimeZoneContext
     /// <returns>
     /// A <see cref="TimeZoneBuilderTree"/> containing all loaded time zone sources.
     /// </returns>
-    public TimeZoneBuilderTree CreateTree(IProgress<int>? progress = null)
+    public (TimeZoneBuilderTree Tree, int NodeCount) CreateTree(IProgress<int>? progress = null)
     {
         TimeZoneBuilderTree tree = new([.. Sources.Select(source => source.Name)]);
-        NodeCount = 1;
         int count = 0;
+        int nodeCount = 1;
         foreach (TimeZoneSource source in Sources)
         {
-            Add(tree, source);
+            nodeCount += Add(tree, source);
             progress?.Report(++count);
         }
 
-        return tree;
+        return (tree, nodeCount);
     }
 
     /// <summary>
@@ -200,51 +195,50 @@ public sealed partial class TimeZoneContext
     /// </summary>
     /// <param name="tree">The <see cref="TimeZoneBuilderTree"/> to which the time zone source will be added.</param>
     /// <param name="source">The <see cref="TimeZoneSource"/> containing the time zone data to add.</param>
-    public void Add(TimeZoneBuilderTree tree, TimeZoneSource source)
+    public int Add(TimeZoneBuilderTree tree, TimeZoneSource source)
     {
+        int halfNodeCount = 0;
         foreach (List<Position> ring in source.Included)
         {
-            Add(tree.Root, source.Index, CollectionsMarshal.AsSpan(ring), Outside, BBox.World, 0);
+            Add(tree.Root, source.Index, CollectionsMarshal.AsSpan(ring), BBox.World, 0, _multipleTimeZones, ref halfNodeCount);
         }
 
-        void Add(TimeZoneBuilderNode node, short index, ReadOnlySpan<Position> ring, Position outside, BBox box, int level)
+        return halfNodeCount * 2;
+
+        static void Add(TimeZoneBuilderNode node, short index, ReadOnlySpan<Position> ring, BBox box, int level, Dictionary<TimeZoneBuilderNode, TimeZoneIndex> multiples, ref int halfNodeCount)
         {
-            (bool subset, bool overlapping) = Check(ring, box, outside);
+            (bool subset, bool overlapping) = Check(ring, box);
 
             if (subset)
             {
-                AddIndex(index);
+                AddIndex(node, index, multiples);
             }
             else if (overlapping)
             {
                 if (level == MaxLevel)
                 {
-                    AddIndex(index);
+                    AddIndex(node, index, multiples);
                 }
                 else
                 {
                     (BBox hi, BBox lo) = box.Split(ref level);
-                    if (node.Hi is null)
+                    if (node.Hi is null || node.Lo is null)
                     {
                         node.Hi = new TimeZoneBuilderNode(node.Index);
-                        NodeCount++;
-                    }
-                    if (node.Lo is null)
-                    {
                         node.Lo = new TimeZoneBuilderNode(node.Index);
-                        NodeCount++;
+                        halfNodeCount++;
                     }
 
-                    Add(node.Hi, index, ring, outside, hi, level);
-                    Add(node.Lo, index, ring, outside, lo, level);
+                    Add(node.Hi, index, ring, hi, level, multiples, ref halfNodeCount);
+                    Add(node.Lo, index, ring, lo, level, multiples, ref halfNodeCount);
                 }
             }
 
-            void AddIndex(short index)
+            static void AddIndex(TimeZoneBuilderNode node, short index, Dictionary<TimeZoneBuilderNode, TimeZoneIndex> multiples)
             {
                 if (!node.Index.Add(index))
                 {
-                    CollectionsMarshal.GetValueRefOrAddDefault(_multipleTimeZones, node, out _).Add(index);
+                    CollectionsMarshal.GetValueRefOrAddDefault(multiples, node, out _).Add(index);
                 }
             }
         }
@@ -261,18 +255,20 @@ public sealed partial class TimeZoneContext
     /// <param name="progress">
     /// An optional <see cref="IProgress{T}"/> instance to report the number of nodes processed.
     /// </param>
-    public void Consolidate(TimeZoneBuilderTree tree, IProgress<int>? progress = null)
+    public void Consolidate(TimeZoneBuilderTree tree, IProgress<int> progress)
     {
         TimeZoneIndex[] indices = new TimeZoneIndex[25];
         int count = 0;
 
-        Consolidate(tree.Root, default, Outside, BBox.World, 0);
+        Consolidate(tree.Root, default, BBox.World, 0);
 
-        void Consolidate(TimeZoneBuilderNode node, TimeZoneIndex2 index, Position outside, BBox box, int level)
+        void Consolidate(TimeZoneBuilderNode node, TimeZoneIndex2 index, BBox box, int level)
         {
-            foreach (short nodeIndex in GetMultipleTimeZones(node))
+            Dictionary<short, TimeZoneSource> sources = _sources;
+
+            foreach (short nodeIndex in GetMultipleTimeZones(node, _multipleTimeZones))
             {
-                if (!IsExcluded(_sources[nodeIndex], box, outside))
+                if (!IsExcluded(sources[nodeIndex], box))
                 {
                     index.Add(nodeIndex);
                 }
@@ -282,17 +278,16 @@ public sealed partial class TimeZoneContext
             {
                 node.Index = default;
                 (BBox hi, BBox lo) = box.Split(ref level);
-                Consolidate(node.Hi, index, outside, hi, level);
-                Consolidate(node.Lo, index, outside, lo, level);
+                Consolidate(node.Hi, index, hi, level);
+                Consolidate(node.Lo, index, lo, level);
             }
             else if (index.Second != 0)
             {
                 Array.Clear(indices);
                 foreach (short nodeIndex in index)
                 {
-                    GetArea(indices, _sources[nodeIndex], box, outside);
+                    GetArea(indices, sources[nodeIndex], box);
                 }
-
                 node.Index = GetFinalIndex(indices);
             }
             else if (index.First != 0)
@@ -300,17 +295,37 @@ public sealed partial class TimeZoneContext
                 node.Index = new TimeZoneIndex(index.First);
             }
 
-            progress?.Report(++count);
+            progress.Report(++count);
+        }
+
+        // Retrieves all time zone indices associated with a given TimeZoneBuilderNode,
+        // including both the primary and secondary indices stored directly in the node, as well as any
+        // additional indices present in the internal dictionary for nodes
+        // representing multiple time zones.
+        static IEnumerable<short> GetMultipleTimeZones(TimeZoneBuilderNode node, Dictionary<TimeZoneBuilderNode, TimeZoneIndex> multiples)
+        {
+            if (node.Index.First == 0) yield break;
+            yield return node.Index.First;
+            if (node.Index.Second == 0) yield break;
+            yield return node.Index.Second;
+
+            if (multiples.TryGetValue(node, out TimeZoneIndex value))
+            {
+                if (value.First == 0) yield break;
+                yield return value.First;
+                if (value.Second == 0) yield break;
+                yield return value.Second;
+            }
         }
 
         // Determines whether the specified bounding box is fully excluded by any of the exclusion rings
         // in the given TimeZoneSource. This is used to check if a region represented by the box
         // parameter should be excluded from the time zone due to the presence of exclusion polygons.
-        static bool IsExcluded(TimeZoneSource source, BBox box, Position outside)
+        static bool IsExcluded(TimeZoneSource source, BBox box)
         {
             foreach (List<Position> ring in source.Excluded)
             {
-                if (Check(CollectionsMarshal.AsSpan(ring), box, outside).Subset)
+                if (Check(CollectionsMarshal.AsSpan(ring), box).Subset)
                 {
                     return true;
                 }
@@ -319,12 +334,12 @@ public sealed partial class TimeZoneContext
             return false;
         }
 
-        // Populates the provided <see cref="TimeZoneIndex"/> array with the time zone indices that are present
-        // within the specified <see cref="BBox"/> region for a given TimeZoneSource.
+        // Populates the provided TimeZoneIndex array with the time zone indices that are present
+        // within the specified BBox region for a given TimeZoneSource.
         // The method samples a 5x5 grid of points within the bounding box and, for each point, determines if it
         // lies inside the included regions and outside the excluded regions of the time zone source. If a point
-        // is inside, the source's index is added to the corresponding entry in the <paramref name="indices"/> array.
-        static void GetArea(TimeZoneIndex[] indices, TimeZoneSource source, BBox box, Position outside)
+        // is inside, the source's index is added to the corresponding entry in the indices array.
+        static void GetArea(TimeZoneIndex[] indices, TimeZoneSource source, BBox box)
         {
             int i = 0;
             for (int x = 0; x < 5; x++)
@@ -333,7 +348,7 @@ public sealed partial class TimeZoneContext
                 for (int y = 0; y < 5; y++)
                 {
                     float latitude = Lerp(box.SouthWest.Latitude, box.NorthEast.Latitude, (float)y / 4);
-                    if (IsInside(new Position(longitude, latitude), source, outside))
+                    if (IsInside(new Position(longitude, latitude), source))
                     {
                         indices[i].Add(source.Index);
                     }
@@ -343,18 +358,18 @@ public sealed partial class TimeZoneContext
 
             static float Lerp(float v0, float v1, float t) => MathF.FusedMultiplyAdd(t, v1 - v0, v0);
 
-            static bool IsInside(Position point, TimeZoneSource source, Position outside)
+            static bool IsInside(Position point, TimeZoneSource source)
             {
                 foreach (List<Position> ring in source.Excluded)
                 {
-                    if (TimeZoneContext.IsInside(CollectionsMarshal.AsSpan(ring), point, outside))
+                    if (TimeZoneContext.IsInside(CollectionsMarshal.AsSpan(ring), point))
                     {
                         return false;
                     }
                 }
                 foreach (List<Position> ring in source.Included)
                 {
-                    if (TimeZoneContext.IsInside(CollectionsMarshal.AsSpan(ring), point, outside))
+                    if (TimeZoneContext.IsInside(CollectionsMarshal.AsSpan(ring), point))
                     {
                         return true;
                     }
@@ -380,32 +395,6 @@ public sealed partial class TimeZoneContext
             return index.Second != 0 && index.First > index.Second
                 ? new TimeZoneIndex(index.Second) { index.First }
                 : index;
-        }
-    }
-
-    /// <summary>
-    /// Retrieves all time zone indices associated with a given <see cref="TimeZoneBuilderNode"/>,
-    /// including both the primary and secondary indices stored directly in the node, as well as any
-    /// additional indices present in the internal dictionary for nodes
-    /// representing multiple time zones.
-    /// </summary>
-    /// <param name="node">The <see cref="TimeZoneBuilderNode"/> for which to retrieve time zone indices.</param>
-    /// <returns>
-    /// An <see cref="IEnumerable{T}"/> containing all time zone indices associated with the node.
-    /// </returns>
-    private IEnumerable<short> GetMultipleTimeZones(TimeZoneBuilderNode node)
-    {
-        if (node.Index.First == 0) yield break;
-        yield return node.Index.First;
-        if (node.Index.Second == 0) yield break;
-        yield return node.Index.Second;
-
-        if (_multipleTimeZones.TryGetValue(node, out TimeZoneIndex value))
-        {
-            if (value.First == 0) yield break;
-            yield return value.First;
-            if (value.Second == 0) yield break;
-            yield return value.Second;
         }
     }
 
@@ -485,8 +474,7 @@ public sealed partial class TimeZoneContext
     /// </para>
     /// <para>
     /// This method uses a winding number algorithm with edge detection to check if the specified <paramref name="point"/>
-    /// lies within the polygon defined by <paramref name="ring"/>. The <paramref name="outside"/> parameter is used as a reference
-    /// point for ray casting in ambiguous cases.
+    /// lies within the polygon defined by <paramref name="ring"/>.
     /// </para>
     /// <para>
     /// The method iterates over the ring using a sliding window, toggling the inside state on each edge crossing.
@@ -495,17 +483,16 @@ public sealed partial class TimeZoneContext
     /// </summary>
     /// <param name="ring">A span of <see cref="Position"/> values representing the closed ring (polygon).</param>
     /// <param name="point">The <see cref="Position"/> to test for inclusion within the ring.</param>
-    /// <param name="outside">A reference <see cref="Position"/> outside the polygon, used for ray casting.</param>
     /// <returns>
     /// <see langword="true"/> if the point is inside the ring or exactly on its edge; otherwise, <see langword="false"/>.
     /// </returns>
-    private static bool IsInside(ReadOnlySpan<Position> ring, Position point, Position outside)
+    private static bool IsInside(ReadOnlySpan<Position> ring, Position point)
     {
         bool isInside = false;
         bool isOnEdge = false;
         for (RingDataWindow p = new(ring); p.HasMore; p.Increment())
         {
-            if (Crossing(ref p, point, outside, ref isOnEdge))
+            if (Crossing(ref p, point, Outside, ref isOnEdge))
             {
                 isInside = !isInside;
             }
@@ -523,7 +510,7 @@ public sealed partial class TimeZoneContext
     /// Determines whether a bounding box is a subset of, or overlaps with, a closed geographic ring (polygon).</para>
     /// <para>
     /// This method checks if the specified <paramref name="box"/> is fully contained within the polygon defined by <paramref name="ring"/>,
-    /// or if it overlaps with the polygon. The <paramref name="outside"/> parameter is used as a reference point for ray casting.
+    /// or if it overlaps with the polygon.
     /// </para>
     /// <para>
     /// The method evaluates the four corners of the bounding box to determine
@@ -533,12 +520,11 @@ public sealed partial class TimeZoneContext
     /// </summary>
     /// <param name="ring">A span of <see cref="Position"/> values representing the closed ring (polygon).</param>
     /// <param name="box">The <see cref="BBox"/> to test for containment or overlap with the ring.</param>
-    /// <param name="outside">A reference <see cref="Position"/> outside the polygon, used for ray casting.</param>
     /// <returns>
     /// A tuple where <c>Subset</c> is <see langword="true"/> if the box is fully contained within the ring and does not cross any edge,
     /// and <c>Overlapping</c> is <see langword="true"/> if the box is fully contained, overlaps, or contains the ring's first point.
     /// </returns>
-    private static (bool Subset, bool Overlapping) Check(ReadOnlySpan<Position> ring, BBox box, Position outside)
+    private static (bool Subset, bool Overlapping) Check(ReadOnlySpan<Position> ring, BBox box)
     {
         Position southWest = box.SouthWest;
         Position northEast = box.NorthEast;
@@ -564,10 +550,10 @@ public sealed partial class TimeZoneContext
                 Crossing(ref p, southEast, northEast, ref isOnEdge) ||
                 Crossing(ref p, northEast, northWest, ref isOnEdge);
 
-            if (northWestOnEdge || Crossing(ref p, northWest, outside, ref northWestOnEdge)) northWestInside = !northWestInside;
-            if (southWestOnEdge || Crossing(ref p, southWest, outside, ref southWestOnEdge)) southWestInside = !southWestInside;
-            if (northEastOnEdge || Crossing(ref p, northEast, outside, ref northEastOnEdge)) northEastInside = !northEastInside;
-            if (southEastOnEdge || Crossing(ref p, southEast, outside, ref southEastOnEdge)) southEastInside = !southEastInside;
+            if (northWestOnEdge || Crossing(ref p, northWest, Outside, ref northWestOnEdge)) northWestInside = !northWestInside;
+            if (southWestOnEdge || Crossing(ref p, southWest, Outside, ref southWestOnEdge)) southWestInside = !southWestInside;
+            if (northEastOnEdge || Crossing(ref p, northEast, Outside, ref northEastOnEdge)) northEastInside = !northEastInside;
+            if (southEastOnEdge || Crossing(ref p, southEast, Outside, ref southEastOnEdge)) southEastInside = !southEastInside;
         }
 
         bool allCornersInside =
@@ -584,7 +570,7 @@ public sealed partial class TimeZoneContext
             bool dummy = false;
             for (RingDataWindow box = new([northWest, southWest, southEast, northEast, northWest, southWest, southEast]); box.HasMore; box.Increment())
             {
-                crossings += Crossing(ref box, q, outside, ref dummy) ? 1 : 0;
+                crossings += Crossing(ref box, q, Outside, ref dummy) ? 1 : 0;
             }
 
             return crossings % 2 != 0;

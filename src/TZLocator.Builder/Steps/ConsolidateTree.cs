@@ -31,12 +31,14 @@ public class ConsolidateTree : ConversionStep
     }
 
     /// <inheritdoc/>
-    protected override Task ExecuteAsync(BuilderContext context, DateTime timestamp)
+    protected override Task ExecuteAsync(BuilderContext builderContext, DateTime timestamp)
     {
-        TimeZoneBuilderTree timeZoneTree = ((Context)context).TimeZoneTree ?? throw new InvalidOperationException();
-        TimeZoneContext timeZoneContext = ((Context)context).TimeZoneContext ?? throw new InvalidOperationException();
+        Context context = (Context)builderContext;
 
-        context.SetTotal(this, timeZoneContext.NodeCount);
+        TimeZoneBuilderTree timeZoneTree = context.TimeZoneTree ?? throw new InvalidOperationException();
+        TimeZoneContext timeZoneContext = context.TimeZoneContext ?? throw new InvalidOperationException();
+
+        context.SetTotal(this, context.NodeCount);
 
         timeZoneContext.Consolidate(timeZoneTree, new Progress<int>(nodes => context.SetProgress(this, nodes)));
 

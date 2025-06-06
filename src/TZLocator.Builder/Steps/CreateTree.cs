@@ -28,13 +28,15 @@ public class CreateTree : ConversionStep
     }
 
     /// <inheritdoc/>
-    protected override Task ExecuteAsync(BuilderContext context, DateTime timestamp)
+    protected override Task ExecuteAsync(BuilderContext builderContext, DateTime timestamp)
     {
-        TimeZoneContext timeZoneContext = ((Context)context).TimeZoneContext ?? throw new InvalidOperationException();
+        Context context = (Context)builderContext;
+
+        TimeZoneContext timeZoneContext = context.TimeZoneContext ?? throw new InvalidOperationException();
 
         context.SetTotal(this, timeZoneContext.Sources.Count);
 
-        ((Context)context).TimeZoneTree = timeZoneContext.CreateTree(new Progress<int>(sources => context.SetProgress(this, sources)));
+        (context.TimeZoneTree, context.NodeCount) = timeZoneContext.CreateTree(new Progress<int>(sources => context.SetProgress(this, sources)));
 
         return Task.CompletedTask;
     }

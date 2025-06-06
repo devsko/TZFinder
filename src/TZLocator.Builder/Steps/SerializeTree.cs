@@ -26,15 +26,17 @@ public class SerializeTree : ConversionStep
     }
 
     /// <inheritdoc/>
-    protected override async Task ExecuteAsync(BuilderContext context, DateTime timestamp)
+    protected override async Task ExecuteAsync(BuilderContext builderContext, DateTime timestamp)
     {
-        TimeZoneBuilderTree timeZoneTree = ((Context)context).TimeZoneTree ?? throw new InvalidOperationException();
-        TimeZoneContext timeZoneContext = ((Context)context).TimeZoneContext ?? throw new InvalidOperationException();
-        FileResource timeZoneFile = ((Context)context).TimeZoneFile;
+        Context context = (Context)builderContext;
+
+        TimeZoneBuilderTree timeZoneTree = context.TimeZoneTree ?? throw new InvalidOperationException();
+        TimeZoneContext timeZoneContext = context.TimeZoneContext ?? throw new InvalidOperationException();
+        FileResource timeZoneFile = context.TimeZoneFile;
 
         await using PreliminaryFileStream file = timeZoneFile.OpenCreate(0, timestamp);
 
-        // GZipStream cannot be flushed and tries to write when disposed
+        // GZipStream cannot be flushed completely and tries to write to the underlying stream when disposed.
         await using (GZipStream stream = new GZipStream(
             new ProgressStream(
                 file,
