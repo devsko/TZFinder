@@ -29,7 +29,7 @@ public static class TimeZoneTreeSerializer
         int written = 0;
         Write(tree.Root);
 
-        void Write(TimeZoneBuilderNode node)
+        void Write(TimeZoneNode node)
         {
             if (node.Index.Second != 0)
             {

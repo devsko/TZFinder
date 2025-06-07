@@ -9,14 +9,14 @@ namespace TZLocator;
 public class TimeZoneTree
 {
     private readonly TimeZoneNode _root;
-    internal readonly string[] _timeZoneNames;
+    private readonly string[] _timeZoneNames;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="TimeZoneTree"/> class with the specified time zone names and root node.
     /// </summary>
     /// <param name="timeZoneNames">An array of time zone names.</param>
     /// <param name="root">The root node of the time zone tree.</param>
-    internal TimeZoneTree(string[] timeZoneNames, TimeZoneNode root)
+    protected internal TimeZoneTree(string[] timeZoneNames, TimeZoneNode root)
     {
         _timeZoneNames = timeZoneNames;
         _root = root;
@@ -25,12 +25,12 @@ public class TimeZoneTree
     /// <summary>
     /// Gets the array of time zone names.
     /// </summary>
-    internal string[] TimeZoneNames => _timeZoneNames;
+    protected string[] TimeZoneNames => _timeZoneNames;
 
     /// <summary>
     /// Gets the root node of the time zone tree.
     /// </summary>
-    internal TimeZoneNode Root => _root;
+    protected TimeZoneNode Root => _root;
 
     /// <summary>
     /// Finds the time zone index, bounding box, and tree level for the specified geographic coordinates.
@@ -70,11 +70,13 @@ public class TimeZoneTree
     /// </returns>
     public IEnumerable<string> GetNames(TimeZoneIndex index)
     {
-        if (index.IsEmpty) yield break;
-        yield return _timeZoneNames[index.First - 1];
-        if (index.Second != 0)
+        if (!index.IsEmpty)
         {
-            yield return _timeZoneNames[index.Second - 1];
+            yield return _timeZoneNames[index.First - 1];
+            if (index.Second != 0)
+            {
+                yield return _timeZoneNames[index.Second - 1];
+            }
         }
     }
 

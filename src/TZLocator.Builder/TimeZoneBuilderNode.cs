@@ -4,46 +4,34 @@
 namespace TZLocator.Builder;
 
 /// <summary>
-/// Represents a node in a time zone tree structure, holding a <see cref="TimeZoneIndex"/> and references to child nodes.
+/// Represents a mutable node in a time zone tree structure for building or modifying the tree.
+/// Inherits from <see cref="TimeZoneNode"/> and provides additional mutability for the <see cref="TimeZoneIndex"/>.
 /// </summary>
-public sealed class TimeZoneBuilderNode
+public sealed class TimeZoneBuilderNode(TimeZoneIndex index) : TimeZoneNode(index)
 {
-    private TimeZoneIndex _index;
-
-    /// <summary>
-    /// Gets or sets the child node representing the higher partition.
-    /// </summary>
-    public TimeZoneBuilderNode? Hi { get; internal set; }
-
-    /// <summary>
-    /// Gets or sets the child node representing the lower partition.
-    /// </summary>
-    public TimeZoneBuilderNode? Lo { get; internal set; }
-
     /// <summary>
     /// Gets a reference to the <see cref="TimeZoneIndex"/> associated with this node.
+    /// This allows direct manipulation of the underlying <see cref="TimeZoneIndex"/> value.
     /// </summary>
-    public ref TimeZoneIndex Index => ref _index;
+    public new ref TimeZoneIndex IndexRef => ref base.IndexRef;
 
     /// <summary>
-    /// Initializes a new instance of the <see cref="TimeZoneBuilderNode"/> class with the specified index.
+    /// Ensures that both child nodes (<see cref="TimeZoneNode.Hi"/> and <see cref="TimeZoneNode.Lo"/>) are initialized.
+    /// If either child node is <see langword="null"/>, both are set to new <see cref="TimeZoneBuilderNode"/> instances
+    /// initialized with the current <see cref="TimeZoneIndex"/>.
     /// </summary>
-    /// <param name="index">The <see cref="TimeZoneIndex"/> to associate with this node.</param>
-    public TimeZoneBuilderNode(TimeZoneIndex index)
+    /// <returns>
+    /// <see langword="true"/> if either child node was <see langword="null"/> and has been initialized; otherwise, <see langword="false"/>.
+    /// </returns>
+    public bool EnsureChildNodes()
     {
-        _index = index;
-    }
+        if (Hi is null || Lo is null)
+        {
+            Hi = new TimeZoneBuilderNode(Index);
+            Lo = new TimeZoneBuilderNode(Index);
+            return true;
+        }
 
-    /// <summary>
-    /// Initializes a new instance of the <see cref="TimeZoneBuilderNode"/> class with the specified index and child nodes.
-    /// </summary>
-    /// <param name="index">The <see cref="TimeZoneIndex"/> to associate with this node.</param>
-    /// <param name="hi">The child node representing the higher partition.</param>
-    /// <param name="lo">The child node representing the lower partition.</param>
-    internal TimeZoneBuilderNode(TimeZoneIndex index, TimeZoneBuilderNode? hi, TimeZoneBuilderNode? lo)
-    {
-        _index = index;
-        Hi = hi;
-        Lo = lo;
+        return false;
     }
 }

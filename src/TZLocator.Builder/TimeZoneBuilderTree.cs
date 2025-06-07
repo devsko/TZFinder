@@ -1,44 +1,26 @@
 ﻿// Copyright (c) devsko. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
+using System.Runtime.CompilerServices;
+
 namespace TZLocator.Builder;
 
 /// <summary>
-/// Represents a tree structure for efficiently locating time zones based on geographic coordinates.
+/// Represents a mutable tree structure for building or modifying time zone trees.
+/// Inherits from <see cref="TimeZoneTree"/> and provides access to a mutable root node of type <see cref="TimeZoneBuilderNode"/>.
 /// </summary>
-public class TimeZoneBuilderTree
+/// <remarks>
+/// This class is intended for scenarios where the time zone tree needs to be constructed or altered before being finalized.
+/// </remarks>
+public sealed class TimeZoneBuilderTree(string[] timeZoneNames) : TimeZoneTree(timeZoneNames, new TimeZoneBuilderNode(default))
 {
-    private readonly TimeZoneBuilderNode _root;
-    internal readonly string[] _timeZoneNames;
+    /// <summary>
+    /// Gets the array of time zone names associated with this builder tree.
+    /// </summary>
+    internal new string[] TimeZoneNames => base.TimeZoneNames;
 
     /// <summary>
-    /// Initializes a new instance of the <see cref="TimeZoneBuilderTree"/> class with the specified time zone names.
+    /// Gets the mutable root node of the builder tree as a <see cref="TimeZoneBuilderNode"/>.
     /// </summary>
-    /// <param name="timeZoneNames">An array of time zone names.</param>
-    public TimeZoneBuilderTree(string[] timeZoneNames)
-    {
-        _timeZoneNames = timeZoneNames;
-        _root = new(default);
-    }
-
-    /// <summary>
-    /// Initializes a new instance of the <see cref="TimeZoneBuilderTree"/> class with the specified time zone names and root node.
-    /// </summary>
-    /// <param name="timeZoneNames">An array of time zone names.</param>
-    /// <param name="root">The root node of the time zone tree.</param>
-    internal TimeZoneBuilderTree(string[] timeZoneNames, TimeZoneBuilderNode root)
-    {
-        _timeZoneNames = timeZoneNames;
-        _root = root;
-    }
-
-    /// <summary>
-    /// Gets the array of time zone names.
-    /// </summary>
-    internal string[] TimeZoneNames => _timeZoneNames;
-
-    /// <summary>
-    /// Gets the root node of the time zone tree.
-    /// </summary>
-    internal TimeZoneBuilderNode Root => _root;
+    internal new TimeZoneBuilderNode Root => Unsafe.As<TimeZoneBuilderNode>(base.Root);
 }

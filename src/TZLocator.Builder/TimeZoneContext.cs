@@ -197,15 +197,15 @@ public sealed partial class TimeZoneContext
     /// <param name="source">The <see cref="TimeZoneSource"/> containing the time zone data to add.</param>
     public int Add(TimeZoneBuilderTree tree, TimeZoneSource source)
     {
-        int halfNodeCount = 0;
+        int nodeCount = 0;
         foreach (List<Position> ring in source.Included)
         {
-            Add(tree.Root, source.Index, CollectionsMarshal.AsSpan(ring), BBox.World, 0, _multipleTimeZones, ref halfNodeCount);
+            Add(tree.Root, source.Index, CollectionsMarshal.AsSpan(ring), BBox.World, 0, _multipleTimeZones, ref nodeCount);
         }
 
-        return halfNodeCount * 2;
+        return nodeCount;
 
-        static void Add(TimeZoneBuilderNode node, short index, ReadOnlySpan<Position> ring, BBox box, int level, Dictionary<TimeZoneBuilderNode, TimeZoneIndex> multiples, ref int halfNodeCount)
+        static void Add(TimeZoneBuilderNode node, short index, ReadOnlySpan<Position> ring, BBox box, int level, Dictionary<TimeZoneBuilderNode, TimeZoneIndex> multiples, ref int nodeCount)
         {
             (bool subset, bool overlapping) = Check(ring, box);
 
@@ -222,21 +222,19 @@ public sealed partial class TimeZoneContext
                 else
                 {
                     (BBox hi, BBox lo) = box.Split(ref level);
-                    if (node.Hi is null || node.Lo is null)
+                    if (node.EnsureChildNodes())
                     {
-                        node.Hi = new TimeZoneBuilderNode(node.Index);
-                        node.Lo = new TimeZoneBuilderNode(node.Index);
-                        halfNodeCount++;
+                        nodeCount += 2;
                     }
 
-                    Add(node.Hi, index, ring, hi, level, multiples, ref halfNodeCount);
-                    Add(node.Lo, index, ring, lo, level, multiples, ref halfNodeCount);
+                    Add(Unsafe.As<TimeZoneBuilderNode>(node.Hi!), index, ring, hi, level, multiples, ref nodeCount);
+                    Add(Unsafe.As<TimeZoneBuilderNode>(node.Lo!), index, ring, lo, level, multiples, ref nodeCount);
                 }
             }
 
             static void AddIndex(TimeZoneBuilderNode node, short index, Dictionary<TimeZoneBuilderNode, TimeZoneIndex> multiples)
             {
-                if (!node.Index.Add(index))
+                if (!node.IndexRef.Add(index))
                 {
                     CollectionsMarshal.GetValueRefOrAddDefault(multiples, node, out _).Add(index);
                 }
@@ -276,10 +274,10 @@ public sealed partial class TimeZoneContext
 
             if (node.Hi is not null && node.Lo is not null)
             {
-                node.Index = default;
+                node.IndexRef = default;
                 (BBox hi, BBox lo) = box.Split(ref level);
-                Consolidate(node.Hi, index, hi, level);
-                Consolidate(node.Lo, index, lo, level);
+                Consolidate(Unsafe.As<TimeZoneBuilderNode>(node.Hi), index, hi, level);
+                Consolidate(Unsafe.As<TimeZoneBuilderNode>(node.Lo), index, lo, level);
             }
             else if (index.Second != 0)
             {
@@ -288,11 +286,11 @@ public sealed partial class TimeZoneContext
                 {
                     GetArea(indices, sources[nodeIndex], box);
                 }
-                node.Index = GetFinalIndex(indices);
+                node.IndexRef = GetFinalIndex(indices);
             }
             else if (index.First != 0)
             {
-                node.Index = new TimeZoneIndex(index.First);
+                node.IndexRef = new TimeZoneIndex(index.First);
             }
 
             progress.Report(++count);
