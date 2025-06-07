@@ -173,20 +173,17 @@ public static class Lookup
     /// Calculates the "Etc" time zone name for the specified longitude.
     /// </summary>
     /// <param name="longitude">The longitude in degrees.</param>
-    /// <returns>The "Etc" time zone name (e.g., "Etc/UTC", "Etc/GMT+2").</returns>
+    /// <returns>The "Etc" time zone name (e.g., "Etc/GMT", "Etc/GMT+2").</returns>
     public static string CalculateEtcTimeZone(float longitude)
     {
-        int offset = (int)((longitude + 7.5f) / 15);
+        int offset = (int)Math.Round(-longitude / 15.0);
 
-        return offset switch
+        return "Etc/GMT" + offset switch
         {
-            0 => "Etc/UTC",
-            < 0 => $"Etc/GMT+{Math.Abs(offset)}",
-            > 0 => $"Etc/GMT-{offset}",
+            0 => "",
+            > 0 => FormattableString.Invariant($"+{offset}"),
+            < 0 => FormattableString.Invariant($"{offset}"),
         };
-        //int offset = (int)Math.Round(-longitude / 15.0);
-
-        //return offset == 0 ? "Etc/UTC" : $"Etc/GMT{(offset > 0 ? "+" : "")}{offset}";
     }
 
     /// <summary>
