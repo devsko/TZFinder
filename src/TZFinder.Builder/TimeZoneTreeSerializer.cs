@@ -3,7 +3,7 @@
 
 using System.Text;
 
-namespace TZLocator.Builder;
+namespace TZFinder.Builder;
 
 /// <summary>
 /// Provides serializing <see cref="TimeZoneBuilderTree"/> instances to a binary stream.

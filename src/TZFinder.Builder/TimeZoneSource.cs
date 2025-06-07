@@ -1,7 +1,7 @@
 ﻿// Copyright (c) devsko. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
-namespace TZLocator.Builder;
+namespace TZFinder.Builder;
 
 /// <summary>
 /// Represents a source of time zone data, including included and excluded geographic regions.

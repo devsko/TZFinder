@@ -2,8 +2,8 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 using Spectre.Builder;
-using TZLocator.Builder;
-using TZLocator.Builder.Steps;
+using TZFinder.Builder;
+using TZFinder.Builder.Steps;
 
 CancellationTokenSource cancellation = new();
 Console.CancelKeyPress += (sender, e) => cancellation.Cancel();

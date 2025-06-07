@@ -3,7 +3,7 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using Spectre.Builder;
 
-namespace TZLocator.Builder;
+namespace TZFinder.Builder;
 
 /// <summary>
 /// Provides a context for managing file and resource dependencies during the time zone builder process.
@@ -68,7 +68,7 @@ public class Context : BuilderContext
     {
         TimeZoneRelease = await GetLatestReleaseAsync();
 
-        string baseAppDataPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "TZLocator");
+        string baseAppDataPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "TZFinder");
         Directory.CreateDirectory(baseAppDataPath);
 
         SourceFile = new FileResource(Path.Combine(baseAppDataPath, $"{TimeZoneRelease}{TimeZoneFileName}"));

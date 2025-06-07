@@ -8,7 +8,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\src\TZLocator\TZLocator.csproj" />
+    <ProjectReference Include="..\..\src\TZFinder\TZFinder.csproj" />
   </ItemGroup>
 
   <ItemGroup>

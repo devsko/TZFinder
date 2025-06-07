@@ -1,4 +1,4 @@
-﻿namespace TZLocator;
+﻿namespace TZFinder;
 
 /// <summary>
 /// Represents a geographic position with longitude and latitude.

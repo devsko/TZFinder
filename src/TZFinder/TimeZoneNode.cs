@@ -1,7 +1,7 @@
 ﻿// Copyright (c) devsko. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
-namespace TZLocator;
+namespace TZFinder;
 
 /// <summary>
 /// Represents a node in a time zone tree structure, holding a <see cref="TimeZoneIndex"/> and references to child nodes.

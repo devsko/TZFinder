@@ -2,7 +2,7 @@
 using System.Diagnostics;
 using System.IO.Compression;
 
-namespace TZLocator;
+namespace TZFinder;
 
 /// <summary>
 /// Provides static methods and properties for looking up time zones based on geographic coordinates.

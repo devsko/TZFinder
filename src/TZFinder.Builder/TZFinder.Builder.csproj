@@ -11,7 +11,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\TZLocator\TZLocator.csproj" />
+    <ProjectReference Include="..\TZFinder\TZFinder.csproj" />
   </ItemGroup>
 
 </Project>

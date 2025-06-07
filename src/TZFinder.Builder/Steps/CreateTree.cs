@@ -1,6 +1,6 @@
 ﻿using Spectre.Builder;
 
-namespace TZLocator.Builder.Steps;
+namespace TZFinder.Builder.Steps;
 
 /// <summary>
 /// A conversion step that creates the time zone tree structure from loaded time zone sources.

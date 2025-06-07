@@ -4,7 +4,7 @@
 using System.Collections;
 using System.Runtime.CompilerServices;
 
-namespace TZLocator;
+namespace TZFinder;
 
 /// <summary>
 /// Represents an index for time zones, supporting up to two short values.

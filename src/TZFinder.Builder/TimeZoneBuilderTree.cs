@@ -3,7 +3,7 @@
 
 using System.Runtime.CompilerServices;
 
-namespace TZLocator.Builder;
+namespace TZFinder.Builder;
 
 /// <summary>
 /// Represents a mutable tree structure for building or modifying time zone trees.

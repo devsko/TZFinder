@@ -1,4 +1,4 @@
-﻿namespace TZLocator;
+﻿namespace TZFinder;
 
 /// <summary>
 /// Represents a rectangular bounding box defined by southwest and northeast positions.

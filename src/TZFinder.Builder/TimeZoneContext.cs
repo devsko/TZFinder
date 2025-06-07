@@ -9,7 +9,7 @@ using GeoJson;
 
 using static GeoJson.Geo<GeoJson.Position2D<float>, float>;
 
-namespace TZLocator.Builder;
+namespace TZFinder.Builder;
 
 /// <summary>
 /// Provides context and operations for building and managing time zone data structures from GeoJSON sources.

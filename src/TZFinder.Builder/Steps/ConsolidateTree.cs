@@ -1,6 +1,6 @@
 ﻿using Spectre.Builder;
 
-namespace TZLocator.Builder.Steps;
+namespace TZFinder.Builder.Steps;
 
 /// <summary>
 /// A conversion step that consolidates the nodes of a <see cref="TimeZoneBuilderTree"/> by resolving overlaps and exclusions

@@ -4,7 +4,7 @@
 using System.IO.Compression;
 using Spectre.Builder;
 
-namespace TZLocator.Builder.Steps;
+namespace TZFinder.Builder.Steps;
 
 /// <summary>
 /// Represents a conversion step that downloads the time zone boundary file from the timezone-boundary-builder GitHub repository.

@@ -4,7 +4,7 @@
 using System.Diagnostics;
 using System.Text;
 
-namespace TZLocator;
+namespace TZFinder;
 
 /// <summary>
 /// Represents a tree structure for efficiently locating time zones based on geographic coordinates.

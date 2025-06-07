@@ -26,10 +26,10 @@
     <File Path="test/Directory.Build.targets" />
   </Folder>
   <Folder Name="/src/">
-    <Project Path="src/TZLocator.Builder/TZLocator.Builder.csproj" />
-    <Project Path="src/TZLocator/TZLocator.csproj" />
+    <Project Path="src/TZFinder.Builder/TZFinder.Builder.csproj" />
+    <Project Path="src/TZFinder/TZFinder.csproj" />
   </Folder>
   <Folder Name="/test/">
-    <Project Path="test/TZLocator.Tests/TZLocator.Tests.csproj" />
+    <Project Path="test/TZFinder.Tests/TZFinder.Tests.csproj" />
   </Folder>
 </Solution>

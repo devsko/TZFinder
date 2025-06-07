@@ -1,7 +1,7 @@
 ﻿using System.IO.Compression;
 using Spectre.Builder;
 
-namespace TZLocator.Builder.Steps;
+namespace TZFinder.Builder.Steps;
 
 /// <summary>
 /// A conversion step that serializes the consolidated time zone tree to a file.

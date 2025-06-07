@@ -1,6 +1,6 @@
 ﻿using Spectre.Builder;
 
-namespace TZLocator.Builder.Steps;
+namespace TZFinder.Builder.Steps;
 
 /// <summary>
 /// Represents a conversion step that loads the source data file and creates a <see cref="TimeZoneContext"/>.
