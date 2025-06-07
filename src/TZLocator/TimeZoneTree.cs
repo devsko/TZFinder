@@ -25,7 +25,7 @@ public class TimeZoneTree
     /// <summary>
     /// Gets the array of time zone names.
     /// </summary>
-    protected string[] TimeZoneNames => _timeZoneNames;
+    protected internal string[] TimeZoneNames => _timeZoneNames;
 
     /// <summary>
     /// Gets the root node of the time zone tree.
