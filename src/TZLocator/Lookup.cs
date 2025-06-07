@@ -144,7 +144,7 @@ public static class Lookup
         static TimeZoneTree LoadFromStream(Stream stream)
         {
             using GZipStream zip = new(stream, CompressionMode.Decompress, leaveOpen: false);
-            return TimeZoneTreeDeserializer.Deserialize(zip);
+            return TimeZoneTree.Deserialize(zip);
         }
     }
 
