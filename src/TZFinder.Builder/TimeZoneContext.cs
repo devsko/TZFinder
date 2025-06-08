@@ -87,11 +87,11 @@ public sealed partial class TimeZoneContext
     public TimeZoneSource GetSource(short index) => _sources[index];
 
     /// <summary>
-    /// Gets the <see cref="TimeZoneSource"/> associated with the specified time zone name.
+    /// Gets the <see cref="TimeZoneSource"/> associated with the specified time zone identifier.
     /// </summary>
-    /// <param name="timeZone">The name of the time zone.</param>
-    /// <returns>The <see cref="TimeZoneSource"/> for the given time zone name.</returns>
-    public TimeZoneSource GetSource(string timeZone) => _sources[_indices[timeZone]];
+    /// <param name="id">The identifier of the time zone.</param>
+    /// <returns>The <see cref="TimeZoneSource"/> for the given time zone identifier.</returns>
+    public TimeZoneSource GetSource(string id) => _sources[_indices[id]];
 
     private TimeZoneContext()
     { }
@@ -153,10 +153,10 @@ public sealed partial class TimeZoneContext
             {
                 throw new NotSupportedException();
             }
-            string timeZone = feature.Properties.tzid;
+            string id = feature.Properties.tzid;
             short index = (short)(context._sources.Count + 1);
-            context._indices.Add(timeZone, index);
-            context._sources.Add(index, new TimeZoneSource { Index = index, Name = timeZone, Included = included, Excluded = excluded });
+            context._indices.Add(id, index);
+            context._sources.Add(index, new TimeZoneSource { Index = index, Id = id, Included = included, Excluded = excluded });
         }
 
         return context;
@@ -175,7 +175,7 @@ public sealed partial class TimeZoneContext
     /// </returns>
     public (TimeZoneBuilderTree Tree, int NodeCount) CreateTree(IProgress<int>? progress = null)
     {
-        TimeZoneBuilderTree tree = new([.. Sources.Select(source => source.Name)]);
+        TimeZoneBuilderTree tree = new([.. Sources.Select(source => source.Id)]);
         int count = 0;
         int nodeCount = 1;
         foreach (TimeZoneSource source in Sources)

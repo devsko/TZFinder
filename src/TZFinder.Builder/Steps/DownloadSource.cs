@@ -28,7 +28,7 @@ public partial class DownloadSource : ConversionStep
         FileResource sourceFile = context.SourceFile;
 
         using HttpResponseMessage response = await context.Client.GetAsync(
-            $"https://github.com/{Context.TimeZoneRepository}/releases/download/{context.TimeZoneRelease}/{Context.TimeZoneFileName}.zip",
+            $"https://github.com/{Context.SourceRepository}/releases/download/{context.SourceRelease}/{Context.SourceFileName}.zip",
             HttpCompletionOption.ResponseHeadersRead);
 
         if (!response.IsSuccessStatusCode)

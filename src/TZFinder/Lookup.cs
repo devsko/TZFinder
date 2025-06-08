@@ -13,16 +13,12 @@ public static class Lookup
     /// <summary>
     /// The default file name for the time zone data file.
     /// </summary>
-    public const string DataFileName = "TimeZones.tree";
+    public const string DataFileName = "TimeZoneData.bin";
 
     private static readonly Lazy<TimeZoneTree> _timeZoneTree = new(Load);
     private static string? _timeZoneDataPath;
     private static Stream? _timeZoneDataStream;
-
-    /// <summary>
-    /// Gets a read-only collection of all available time zone names.
-    /// </summary>
-    public static ReadOnlyCollection<string> TimeZones { get; } = new(_timeZoneTree.Value.TimeZoneNames);
+    private static ReadOnlyCollection<string>? _timeZoneIds;
 
     /// <summary>
     /// Gets or sets the path to the time zone data file.
@@ -90,6 +86,162 @@ public static class Lookup
         }
     }
 
+    /// <summary>
+    /// Gets a read-only collection of all available time zone identifiers.
+    /// </summary>
+    public static ReadOnlyCollection<string> TimeZoneIds => _timeZoneIds ??= new(_timeZoneTree.Value.TimeZoneIds);
+
+    /// <summary>
+    /// Gets the time zone index (1-based) for the specified time zone identifier.
+    /// </summary>
+    /// <param name="timeZoneId">The time zone identifier to look up.</param>
+    /// <returns>The 1-based index of the specified time zone identifier.</returns>
+    /// <exception cref="ArgumentException">Thrown if the time zone identifier is unknown.</exception>
+    public static short GetTimeZoneIndex(string timeZoneId)
+    {
+#if NET10_0
+        short index = (short)((ReadOnlySpan<string>)_timeZoneTree.Value.TimeZoneIds).IndexOf(timeZoneId, StringComparer.OrdinalIgnoreCase);
+#else
+        short index = (short)Array.FindIndex(_timeZoneTree.Value.TimeZoneIds, item => string.Equals(item, timeZoneId, StringComparison.OrdinalIgnoreCase));
+#endif
+
+        return index is not -1 ? ++index : throw new ArgumentException($"Unknown time zone '{timeZoneId}'.", nameof(timeZoneId));
+    }
+
+    /// <summary>
+    /// Gets the time zone identifier for the specified index.
+    /// </summary>
+    /// <param name="index">The time zone index (1-based).</param>
+    /// <returns>The time zone identifier corresponding to the index.</returns>
+    public static string GetTimeZoneId(short index)
+    {
+        return _timeZoneTree.Value.TimeZoneIds[index - 1];
+    }
+
+    /// <summary>
+    /// Gets the <see cref="TimeZoneIndex"/> for the specified longitude and latitude.
+    /// </summary>
+    /// <param name="longitude">The longitude in degrees.</param>
+    /// <param name="latitude">The latitude in degrees.</param>
+    /// <returns>The <see cref="TimeZoneIndex"/> for the specified coordinates.</returns>
+    public static TimeZoneIndex GetTimeZoneIndex(float longitude, float latitude)
+    {
+        return _timeZoneTree.Value.Get(longitude, latitude).Index;
+    }
+
+    /// <summary>
+    /// Gets the <see cref="TimeZoneIndex"/> for the specified longitude and latitude, and outputs the bounding box containing the coordinates.
+    /// </summary>
+    /// <param name="longitude">The longitude in degrees.</param>
+    /// <param name="latitude">The latitude in degrees.</param>
+    /// <param name="box">When this method returns, contains the bounding box that includes the specified coordinates.</param>
+    /// <returns>The <see cref="TimeZoneIndex"/> for the specified coordinates.</returns>
+    public static TimeZoneIndex GetTimeZoneIndex(float longitude, float latitude, out BBox box)
+    {
+        (TimeZoneIndex index, box, _) = _timeZoneTree.Value.Get(longitude, latitude);
+        return index;
+    }
+
+    /// <summary>
+    /// Gets the time zone identifier for the specified longitude and latitude.
+    /// </summary>
+    /// <param name="longitude">The longitude in degrees.</param>
+    /// <param name="latitude">The latitude in degrees.</param>
+    /// <returns>The time zone identifier for the specified coordinates.</returns>
+    public static string GetTimeZoneId(float longitude, float latitude)
+    {
+        return _timeZoneTree.Value.TimeZoneIds[GetTimeZoneIndex(longitude, latitude).First];
+    }
+
+    /// <summary>
+    /// Gets the time zone identifier for the specified longitude and latitude, and outputs the bounding box containing the coordinates.
+    /// </summary>
+    /// <param name="longitude">The longitude in degrees.</param>
+    /// <param name="latitude">The latitude in degrees.</param>
+    /// <param name="box">When this method returns, contains the bounding box that includes the specified coordinates.</param>
+    /// <returns>The time zone identifier for the specified coordinates.</returns>
+    public static string GetTimeZoneId(float longitude, float latitude, out BBox box)
+    {
+        return _timeZoneTree.Value.TimeZoneIds[GetTimeZoneIndex(longitude, latitude, out box).First];
+    }
+
+    /// <summary>
+    /// Gets all time zone identifiers for the specified longitude and latitude.
+    /// </summary>
+    /// <param name="longitude">The longitude in degrees.</param>
+    /// <param name="latitude">The latitude in degrees.</param>
+    /// <returns>An enumerable of all time zone identifiers for the specified coordinates.</returns>
+    public static IEnumerable<string> GetAllTimeZoneIds(float longitude, float latitude)
+    {
+        TimeZoneIndex index = GetTimeZoneIndex(longitude, latitude);
+        if (index.First == 0)
+        {
+            yield return CalculateEtcTimeZoneId(longitude);
+        }
+        else
+        {
+            yield return GetTimeZoneId(index.First);
+            if (index.Second != 0)
+            {
+                yield return GetTimeZoneId(index.Second);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Calculates the etcetera time zone identifier for the specified longitude.
+    /// </summary>
+    /// <param name="longitude">The longitude in degrees.</param>
+    /// <returns>The etcetera time zone identifier (e.g., "Etc/GMT", "Etc/GMT+2").</returns>
+    public static string CalculateEtcTimeZoneId(float longitude)
+    {
+        int offset = (int)Math.Round(-longitude / 15.0);
+
+        return "Etc/GMT" + offset switch
+        {
+            0 => "",
+            > 0 => FormattableString.Invariant($"+{offset}"),
+            < 0 => FormattableString.Invariant($"{offset}"),
+        };
+    }
+
+    /// <summary>
+    /// Traverses all bounding boxes contained in the time zone specified by the coordinates and invokes the provided action for each.
+    /// </summary>
+    /// <remarks>If the specified coordinates point to an area with overlapping time zones, only boxes with the same combination are traversed.</remarks>
+    /// <param name="longitude">The longitude in degrees.</param>
+    /// <param name="latitude">The latitude in degrees.</param>
+    /// <param name="action">The action to invoke for each bounding box.</param>
+    public static void Traverse(float longitude, float latitude, Action<BBox> action)
+    {
+        TimeZoneIndex timeZoneIndex = GetTimeZoneIndex(longitude, latitude);
+        _timeZoneTree.Value.Traverse((index, box) =>
+        {
+            if (timeZoneIndex.Second == 0 && index.Contains(timeZoneIndex.First) || index.Equals(timeZoneIndex))
+            {
+                action(box);
+            }
+        });
+    }
+
+    /// <summary>
+    /// Traverses the bounding boxes contained in the specified time zone and invokes the provided action for each.
+    /// </summary>
+    /// <param name="timeZoneId">The time zone identifier.</param>
+    /// <param name="action">The action to invoke for each bounding box.</param>
+    /// <exception cref="ArgumentException">Thrown if the time zone identifier is unknown.</exception>
+    public static void Traverse(string timeZoneId, Action<BBox> action)
+    {
+        short timeZoneIndex = GetTimeZoneIndex(timeZoneId);
+        _timeZoneTree.Value.Traverse((index, box) =>
+        {
+            if (index.Contains(timeZoneIndex))
+            {
+                action(box);
+            }
+        });
+    }
+
     private static TimeZoneTree Load()
     {
         Stream? stream = null;
@@ -148,118 +300,4 @@ public static class Lookup
         }
     }
 
-    /// <summary>
-    /// Gets the <see cref="TimeZoneIndex"/> for the specified longitude and latitude.
-    /// </summary>
-    /// <param name="longitude">The longitude in degrees.</param>
-    /// <param name="latitude">The latitude in degrees.</param>
-    /// <returns>The <see cref="TimeZoneIndex"/> for the specified coordinates.</returns>
-    public static TimeZoneIndex GetTimeZoneIndex(float longitude, float latitude)
-    {
-        return _timeZoneTree.Value.Get(longitude, latitude).Index;
-    }
-
-    /// <summary>
-    /// Gets the time zone name for the specified index.
-    /// </summary>
-    /// <param name="index">The time zone index (1-based).</param>
-    /// <returns>The time zone name corresponding to the index.</returns>
-    public static string GetTimeZone(short index)
-    {
-        return _timeZoneTree.Value.TimeZoneNames[index - 1];
-    }
-
-    /// <summary>
-    /// Calculates the "Etc" time zone name for the specified longitude.
-    /// </summary>
-    /// <param name="longitude">The longitude in degrees.</param>
-    /// <returns>The "Etc" time zone name (e.g., "Etc/GMT", "Etc/GMT+2").</returns>
-    public static string CalculateEtcTimeZone(float longitude)
-    {
-        int offset = (int)Math.Round(-longitude / 15.0);
-
-        return "Etc/GMT" + offset switch
-        {
-            0 => "",
-            > 0 => FormattableString.Invariant($"+{offset}"),
-            < 0 => FormattableString.Invariant($"{offset}"),
-        };
-    }
-
-    /// <summary>
-    /// Gets the time zone name for the specified longitude and latitude.
-    /// </summary>
-    /// <param name="longitude">The longitude in degrees.</param>
-    /// <param name="latitude">The latitude in degrees.</param>
-    /// <returns>The time zone name for the specified coordinates.</returns>
-    public static string GetTimeZone(float longitude, float latitude)
-    {
-        return _timeZoneTree.Value.TimeZoneNames[GetTimeZoneIndex(longitude, latitude).First];
-    }
-
-    /// <summary>
-    /// Gets all time zone names for the specified longitude and latitude.
-    /// </summary>
-    /// <param name="longitude">The longitude in degrees.</param>
-    /// <param name="latitude">The latitude in degrees.</param>
-    /// <returns>An enumerable of all time zone names for the specified coordinates.</returns>
-    public static IEnumerable<string> GetAllTimeZones(float longitude, float latitude)
-    {
-        TimeZoneIndex index = GetTimeZoneIndex(longitude, latitude);
-        if (index.First == 0)
-        {
-            yield return CalculateEtcTimeZone(longitude);
-        }
-        else
-        {
-            yield return GetTimeZone(index.First);
-            if (index.Second != 0)
-            {
-                yield return GetTimeZone(index.Second);
-            }
-        }
-    }
-
-    /// <summary>
-    /// Traverses all bounding boxes contained in the time zone specified by the coordinates and invokes the provided action for each.
-    /// </summary>
-    /// <remarks>If the specified coordinates point to an area with overlapping time zones, only boxes with the same combination are traversed.</remarks>
-    /// <param name="longitude">The longitude in degrees.</param>
-    /// <param name="latitude">The latitude in degrees.</param>
-    /// <param name="action">The action to invoke for each bounding box.</param>
-    public static void Traverse(float longitude, float latitude, Action<BBox> action)
-    {
-        TimeZoneIndex timeZoneIndex = GetTimeZoneIndex(longitude, latitude);
-        _timeZoneTree.Value.Traverse((index, box) =>
-        {
-            if (timeZoneIndex.Second == 0 && index.Contains(timeZoneIndex.First) || index.Equals(timeZoneIndex))
-            {
-                action(box);
-            }
-        });
-    }
-
-    /// <summary>
-    /// Traverses the bounding boxes contained in the specified time zone and invokes the provided action for each.
-    /// </summary>
-    /// <param name="timeZone">The time zone name.</param>
-    /// <param name="action">The action to invoke for each bounding box.</param>
-    /// <exception cref="ArgumentException">Thrown if the time zone name is unknown.</exception>
-    public static void Traverse(string timeZone, Action<BBox> action)
-    {
-        short timeZoneIndex = (short)Array.FindIndex(_timeZoneTree.Value.TimeZoneNames, item => string.Equals(item, timeZone, StringComparison.OrdinalIgnoreCase));
-        if (timeZoneIndex is -1)
-        {
-            throw new ArgumentException($"Unknown time zone '{timeZone}'.", nameof(timeZone));
-        }
-
-        timeZoneIndex++;
-        _timeZoneTree.Value.Traverse((index, box) =>
-        {
-            if (index.Contains(timeZoneIndex))
-            {
-                action(box);
-            }
-        });
-    }
 }

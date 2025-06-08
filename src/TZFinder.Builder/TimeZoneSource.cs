@@ -14,9 +14,9 @@ public sealed class TimeZoneSource
     public required short Index { get; init; }
 
     /// <summary>
-    /// Gets the name of the time zone source.
+    /// Gets the identifier of the time zone source.
     /// </summary>
-    public required string Name { get; init; }
+    public required string Id { get; init; }
 
     /// <summary>
     /// Gets the array of lists of included regions for the time zone.

@@ -22,7 +22,7 @@ public class SerializeTree : ConversionStep
     /// <inheritdoc/>
     protected override async IAsyncEnumerable<IResource> GetOutputsAsync(BuilderContext context)
     {
-        yield return ((Context)context).TimeZoneFile;
+        yield return ((Context)context).TimeZoneDataFile;
     }
 
     /// <inheritdoc/>
@@ -32,18 +32,19 @@ public class SerializeTree : ConversionStep
 
         TimeZoneBuilderTree timeZoneTree = context.TimeZoneTree ?? throw new InvalidOperationException();
         TimeZoneContext timeZoneContext = context.TimeZoneContext ?? throw new InvalidOperationException();
-        FileResource timeZoneFile = context.TimeZoneFile;
+        FileResource timeZoneFile = context.TimeZoneDataFile;
 
         await using PreliminaryFileStream file = timeZoneFile.OpenCreate(0, timestamp);
 
-        // GZipStream cannot be flushed completely and tries to write to the underlying stream when disposed.
+        // GZipStream cannot be flushed completely and tries to write to the underlying stream
+        // when disposed (happens after Persist() which disposes the file stream).
         await using (GZipStream stream = new GZipStream(
             new ProgressStream(
                 file,
                 bytes => context.IncrementProgress(this, bytes)),
             CompressionLevel.Optimal, leaveOpen: true))
         {
-            TimeZoneTreeSerializer.Serialize(timeZoneTree, stream);
+            timeZoneTree.Serialize(stream);
         }
 
         file.Persist();

@@ -12,23 +12,23 @@ namespace TZFinder;
 public class TimeZoneTree
 {
     private readonly TimeZoneNode _root;
-    private readonly string[] _timeZoneNames;
+    private readonly string[] _timeZoneIds;
 
     /// <summary>
-    /// Initializes a new instance of the <see cref="TimeZoneTree"/> class with the specified time zone names and root node.
+    /// Initializes a new instance of the <see cref="TimeZoneTree"/> class with the specified time zone identifierss and root node.
     /// </summary>
-    /// <param name="timeZoneNames">An array of time zone names.</param>
+    /// <param name="timeZoneIds">An array of time zone identifiers.</param>
     /// <param name="root">The root node of the time zone tree.</param>
-    protected internal TimeZoneTree(string[] timeZoneNames, TimeZoneNode root)
+    protected internal TimeZoneTree(string[] timeZoneIds, TimeZoneNode root)
     {
-        _timeZoneNames = timeZoneNames;
+        _timeZoneIds = timeZoneIds;
         _root = root;
     }
 
     /// <summary>
-    /// Gets the array of time zone names.
+    /// Gets the array of time zone identifiers.
     /// </summary>
-    protected internal string[] TimeZoneNames => _timeZoneNames;
+    protected internal string[] TimeZoneIds => _timeZoneIds;
 
     /// <summary>
     /// Gets the root node of the time zone tree.
@@ -102,20 +102,20 @@ public class TimeZoneTree
     }
 
     /// <summary>
-    /// Gets the time zone names corresponding to the specified <see cref="TimeZoneIndex"/>.
+    /// Gets the time zone identifiers corresponding to the specified <see cref="TimeZoneIndex"/>.
     /// </summary>
     /// <param name="index">The time zone index.</param>
     /// <returns>
-    /// An enumerable collection of up to 2 time zone names.
+    /// An enumerable collection of up to 2 time zone identifiers.
     /// </returns>
-    public IEnumerable<string> GetNames(TimeZoneIndex index)
+    public IEnumerable<string> GetIds(TimeZoneIndex index)
     {
         if (!index.IsEmpty)
         {
-            yield return _timeZoneNames[index.First - 1];
+            yield return _timeZoneIds[index.First - 1];
             if (index.Second != 0)
             {
-                yield return _timeZoneNames[index.Second - 1];
+                yield return _timeZoneIds[index.Second - 1];
             }
         }
     }

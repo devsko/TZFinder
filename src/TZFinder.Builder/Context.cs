@@ -13,12 +13,13 @@ public class Context : BuilderContext
     /// <summary>
     /// The GitHub repository for the timezone boundary builder.
     /// </summary>
-    public const string TimeZoneRepository = "evansiroky/timezone-boundary-builder";
+    public const string SourceRepository = "evansiroky/timezone-boundary-builder";
 
     /// <summary>
     /// The file name for the time zone GeoJSON file.
     /// </summary>
-    public const string TimeZoneFileName = "timezones.geojson";
+    public const string SourceFileName = "timezones.geojson";
+    //public const string SourceFileName = "timezones-with-oceans.geojson";
 
     /// <summary>
     /// Gets the <see cref="HttpClient"/> used for HTTP requests.
@@ -26,9 +27,9 @@ public class Context : BuilderContext
     public HttpClient Client { get; } = CreateClient();
 
     /// <summary>
-    /// Gets the tag name of the latest time zone release.
+    /// Gets the tag name of the latest timezone boundary builder release.
     /// </summary>
-    public string? TimeZoneRelease { get; private set; }
+    public string? SourceRelease { get; private set; }
 
     /// <summary>
     /// Gets or sets the <see cref="TimeZoneContext"/> for the current run.
@@ -41,11 +42,6 @@ public class Context : BuilderContext
     public TimeZoneBuilderTree? TimeZoneTree { get; set; }
 
     /// <summary>
-    /// Gets or sets the number of nodes in the time zone builder tree.
-    /// </summary>
-    public int NodeCount { get; set; }
-
-    /// <summary>
     /// Gets the <see cref="FileResource"/> representing the source file.
     /// </summary>
     [AllowNull]
@@ -55,7 +51,7 @@ public class Context : BuilderContext
     /// Gets the <see cref="FileResource"/> representing the time zone file.
     /// </summary>
     [AllowNull]
-    public FileResource TimeZoneFile { get; private set; }
+    public FileResource TimeZoneDataFile { get; private set; }
 
     /// <summary>
     /// Gets the <see cref="CalculationResource"/> representing the time zone calculation resource.
@@ -63,21 +59,26 @@ public class Context : BuilderContext
     [AllowNull]
     public CalculationResource TimeZoneCalculation { get; private set; }
 
+    /// <summary>
+    /// Gets or sets the number of nodes in the time zone builder tree.
+    /// </summary>
+    public int NodeCount { get; set; }
+
     /// <inheritdoc/>
     protected override async Task InitializeAsync()
     {
-        TimeZoneRelease = await GetLatestReleaseAsync();
+        SourceRelease = await GetLatestReleaseAsync();
 
         string baseAppDataPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "TZFinder");
         Directory.CreateDirectory(baseAppDataPath);
 
-        SourceFile = new FileResource(Path.Combine(baseAppDataPath, $"{TimeZoneRelease}{TimeZoneFileName}"));
-        TimeZoneFile = new FileResource(Path.Combine(baseAppDataPath, "TimeZones.tree"));
-        TimeZoneCalculation = new CalculationResource(TimeZoneFile);
+        SourceFile = new FileResource(Path.Combine(baseAppDataPath, $"{SourceRelease}{SourceFileName}"));
+        TimeZoneDataFile = new FileResource(Path.Combine(baseAppDataPath, Lookup.DataFileName));
+        TimeZoneCalculation = new CalculationResource(TimeZoneDataFile);
 
         async Task<string> GetLatestReleaseAsync()
         {
-            JsonElement latestRelease = await Client.GetFromJsonAsync<JsonElement>($"https://api.github.com/repos/{TimeZoneRepository}/releases/latest");
+            JsonElement latestRelease = await Client.GetFromJsonAsync<JsonElement>($"https://api.github.com/repos/{SourceRepository}/releases/latest");
 
             return latestRelease.GetProperty("tag_name").GetString()!;
         }
@@ -86,7 +87,7 @@ public class Context : BuilderContext
     private static HttpClient CreateClient()
     {
         HttpClient client = new();
-        client.DefaultRequestHeaders.Add("User-Agent", "Nbrounter.Map");
+        client.DefaultRequestHeaders.Add("User-Agent", "TZFinder");
 
         return client;
     }

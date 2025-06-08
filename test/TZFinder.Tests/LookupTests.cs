@@ -18,6 +18,6 @@ public static class LookupTests
     [InlineData(-179.9f, "Etc/GMT+12")]
     public static void EtcTimeZone(float longitude, string expected)
     {
-        Assert.Equal(expected, Lookup.CalculateEtcTimeZone(longitude));
+        Assert.Equal(expected, Lookup.CalculateEtcTimeZoneId(longitude));
     }
 }
