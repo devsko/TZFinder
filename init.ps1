@@ -82,7 +82,8 @@ $env:NUGET_PLUGIN_REQUEST_TIMEOUT_IN_SECONDS = 20
 Push-Location $PSScriptRoot
 
 # Temporary workaround
-dotnet sln remove TimeZoneVisualizer
+dotnet sln remove test\TimeZoneVisualizer\TimeZoneVisualizer.csproj
+
 
 try {
     $HeaderColor = 'Green'
