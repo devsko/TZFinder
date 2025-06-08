@@ -87,6 +87,26 @@ public struct TimeZoneIndex : IEquatable<TimeZoneIndex>, IEnumerable<short>
     public override readonly int GetHashCode() => _value.GetHashCode();
 
     /// <summary>
+    /// Determines whether two <see cref="TimeZoneIndex"/> instances are equal.
+    /// </summary>
+    /// <param name="left">The first <see cref="TimeZoneIndex"/> to compare.</param>
+    /// <param name="right">The second <see cref="TimeZoneIndex"/> to compare.</param>
+    /// <returns>
+    /// <see langword="true"/> if the two <see cref="TimeZoneIndex"/> instances are equal; otherwise, <see langword="false"/>.
+    /// </returns>
+    public static bool operator ==(TimeZoneIndex left, TimeZoneIndex right) => left.Equals(right);
+
+    /// <summary>
+    /// Determines whether two <see cref="TimeZoneIndex"/> instances are not equal.
+    /// </summary>
+    /// <param name="left">The first <see cref="TimeZoneIndex"/> to compare.</param>
+    /// <param name="right">The second <see cref="TimeZoneIndex"/> to compare.</param>
+    /// <returns>
+    /// <see langword="true"/> if the two <see cref="TimeZoneIndex"/> instances are not equal; otherwise, <see langword="false"/>.
+    /// </returns>
+    public static bool operator !=(TimeZoneIndex left, TimeZoneIndex right) => !left.Equals(right);
+
+    /// <summary>
     /// Returns an enumerator that iterates through the time zone indices.
     /// </summary>
     /// <returns>An enumerator for the time zone indices.</returns>

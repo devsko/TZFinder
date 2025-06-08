@@ -30,6 +30,12 @@
     <Project Path="src/TZFinder/TZFinder.csproj" />
   </Folder>
   <Folder Name="/test/">
+    <Project Path="test/TimeZoneVisualizer/TimeZoneVisualizer.csproj" Id="8cd3b649-97f8-4a71-acba-6637f42521ff">
+      <Platform Solution="*|Any CPU" Project="x64" />
+      <Platform Solution="*|x64" Project="x64" />
+      <Platform Solution="*|x86" Project="x86" />
+      <Deploy />
+    </Project>
     <Project Path="test/TZFinder.Tests/TZFinder.Tests.csproj" />
   </Folder>
 </Solution>

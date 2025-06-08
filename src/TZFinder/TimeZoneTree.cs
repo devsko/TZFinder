@@ -114,7 +114,7 @@ public class TimeZoneTree
                 ? (node.Hi, hi)
                 : (node.Lo, lo);
 
-            return Get(node, longitude, latitude, box, level + 1);
+            return Get(node, longitude, latitude, box, level);
         }
     }
 

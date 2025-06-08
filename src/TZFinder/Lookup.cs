@@ -21,15 +21,12 @@ public static class Lookup
     private static ReadOnlyCollection<string>? _timeZoneIds;
 
     /// <summary>
-    /// Gets or sets the path to the time zone data file.
-    /// Must be set before the time zone tree is loaded.
+    /// Gets or sets the file path to the time zone data file.
+    /// Must be set before the time zone tree is loaded. If not set, the default path is determined automatically.
     /// </summary>
-    /// <exception cref="InvalidOperationException">Thrown if the time zone tree has already been loaded.</exception>
-    /// <exception cref="ArgumentNullException">Thrown if the value is null.</exception>
-    /// <exception cref="ArgumentException">Thrown if the file does not exist.</exception>
-    public static string? TimeZoneDataPath
+    public static string TimeZoneDataPath
     {
-        get => _timeZoneDataPath;
+        get => _timeZoneDataPath ??= GetTimeZoneDataPath();
         set
         {
             if (_timeZoneTree.IsValueCreated)
@@ -85,6 +82,12 @@ public static class Lookup
             _timeZoneDataStream = value;
         }
     }
+
+    /// <summary>
+    /// Gets the singleton instance of the <see cref="TimeZoneTree"/> used for time zone lookups.
+    /// The tree is loaded lazily from the configured data file or stream on first access.
+    /// </summary>
+    public static TimeZoneTree TimeZoneTree => _timeZoneTree.Value;
 
     /// <summary>
     /// Gets a read-only collection of all available time zone identifiers.
@@ -204,19 +207,30 @@ public static class Lookup
     }
 
     /// <summary>
-    /// Gets all time zone identifiers for the specified longitude and latitude.
+    /// Gets all time zone identifiers for the specified longitude and latitude, including any overlapping time zones.
     /// </summary>
     /// <param name="longitude">The longitude in degrees.</param>
     /// <param name="latitude">The latitude in degrees.</param>
-    /// <returns>An enumerable of all time zone identifiers for the specified coordinates.</returns>
+    /// <param name="index">
+    /// When this method returns, contains the <see cref="TimeZoneIndex"/> corresponding to the specified coordinates.
+    /// </param>
+    /// <returns>
+    /// An <see cref="IEnumerable{T}"/> of time zone identifiers for the specified coordinates. If the location is in an area with overlapping time zones, all relevant identifiers are returned.
+    /// </returns>
     /// <exception cref="ArgumentOutOfRangeException">Thrown if <paramref name="longitude"/> or <paramref name="latitude"/> is out of range.</exception>
-    public static IEnumerable<string> GetAllTimeZoneIds(float longitude, float latitude)
+    public static IEnumerable<string> GetAllTimeZoneIds(float longitude, float latitude, out TimeZoneIndex index)
     {
-        TimeZoneIndex index = GetTimeZoneIndex(longitude, latitude);
-        yield return GetTimeZoneId(index.First, longitude);
-        if (index.Second != 0)
+        index = GetTimeZoneIndex(longitude, latitude);
+
+        return Enumerate(index, longitude);
+
+        static IEnumerable<string> Enumerate(TimeZoneIndex index, float longitude)
         {
-            yield return GetTimeZoneId(index.Second, 0);
+            yield return GetTimeZoneId(index.First, longitude);
+            if (index.Second != 0)
+            {
+                yield return GetTimeZoneId(index.Second, 0);
+            }
         }
     }
 
@@ -259,8 +273,33 @@ public static class Lookup
     /// <param name="longitude">The longitude in degrees.</param>
     /// <param name="latitude">The latitude in degrees.</param>
     /// <param name="action">The action to invoke for each bounding box.</param>
+    /// <exception cref="ArgumentNullException">Thrown if <paramref name="action"/> is <see langword="null"/>.</exception>
     /// <exception cref="ArgumentOutOfRangeException">Thrown if <paramref name="longitude"/> or <paramref name="latitude"/> is out of range.</exception>
     public static void Traverse(float longitude, float latitude, Action<BBox> action)
+    {
+        Traverse(GetTimeZoneIndex(longitude, latitude), action);
+    }
+
+    /// <summary>
+    /// Traverses the bounding boxes contained in the specified time zone and invokes the provided action for each.
+    /// </summary>
+    /// <param name="timeZoneId">The time zone identifier.</param>
+    /// <param name="action">The action to invoke for each bounding box.</param>
+    /// <exception cref="ArgumentNullException">Thrown if <paramref name="action"/> is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentNullException">Thrown if <paramref name="timeZoneId"/> is <see langword="null"/></exception>
+    /// <exception cref="ArgumentException">Thrown if the time zone identifier is unknown.</exception>
+    public static void Traverse(string timeZoneId, Action<BBox> action)
+    {
+        Traverse(new TimeZoneIndex(GetTimeZoneIndex(timeZoneId)), action);
+    }
+
+    /// <summary>
+    /// Traverses the bounding boxes contained in the specified <see cref="TimeZoneIndex"/> and invokes the provided action for each.
+    /// </summary>
+    /// <param name="timeZoneIndex">The <see cref="TimeZoneIndex"/> specifying the time zone(s) to traverse.</param>
+    /// <param name="action">The action to invoke for each bounding box.</param>
+    /// <exception cref="ArgumentNullException">Thrown if <paramref name="action"/> is <see langword="null"/>.</exception>
+    public static void Traverse(TimeZoneIndex timeZoneIndex, Action<BBox> action)
     {
 #if NET
         ArgumentNullException.ThrowIfNull(action);
@@ -271,7 +310,6 @@ public static class Lookup
         }
 #endif
 
-        TimeZoneIndex timeZoneIndex = GetTimeZoneIndex(longitude, latitude);
         _timeZoneTree.Value.Traverse((index, box) =>
         {
             if (timeZoneIndex.Second == 0 && index.Contains(timeZoneIndex.First) || index.Equals(timeZoneIndex))
@@ -281,29 +319,27 @@ public static class Lookup
         });
     }
 
-    /// <summary>
-    /// Traverses the bounding boxes contained in the specified time zone and invokes the provided action for each.
-    /// </summary>
-    /// <param name="timeZoneId">The time zone identifier.</param>
-    /// <param name="action">The action to invoke for each bounding box.</param>
-    /// <exception cref="ArgumentNullException">Thrown if <paramref name="timeZoneId"/> is <see langword="null"/></exception>
-    /// <exception cref="ArgumentException">Thrown if the time zone identifier is unknown.</exception>
-    public static void Traverse(string timeZoneId, Action<BBox> action)
+    private static string GetTimeZoneDataPath()
     {
-        short timeZoneIndex = GetTimeZoneIndex(timeZoneId);
-        _timeZoneTree.Value.Traverse((index, box) =>
+        string? dataPath = null;
+        string? executablePath = null;
+
+#if NET
+        executablePath = Environment.ProcessPath;
+#endif
+        if ((executablePath ??= Process.GetCurrentProcess().MainModule?.FileName) is not null)
         {
-            if (index.Contains(timeZoneIndex))
-            {
-                action(box);
-            }
-        });
+            dataPath = Path.Combine(Path.GetDirectoryName(executablePath)!, DataFileName);
+        }
+
+        return dataPath is null || !File.Exists(dataPath)
+            ? throw new InvalidOperationException($"Could not find time zone data file{(executablePath is not null ? $" at '{executablePath}'" : "")}. Consider setting {nameof(TimeZoneDataPath)}.")
+            : dataPath;
     }
 
     private static TimeZoneTree Load()
     {
-        Stream? stream = null;
-        string? dataPath = null;
+        Stream? stream;
 
         if (_timeZoneDataStream is not null)
         {
@@ -311,34 +347,13 @@ public static class Lookup
         }
         else
         {
-            if (_timeZoneDataPath is not null)
-            {
-                dataPath = _timeZoneDataPath;
-            }
-            else
-            {
-                string? executablePath = null;
-
-#if NET
-                executablePath = Environment.ProcessPath;
-#endif
-                if ((executablePath ??= Process.GetCurrentProcess().MainModule?.FileName) is not null)
-                {
-                    dataPath = Path.Combine(Path.GetDirectoryName(executablePath)!, DataFileName);
-                }
-
-                if (dataPath is null || !File.Exists(dataPath))
-                {
-                    throw new InvalidOperationException($"Could not find time zone data file{(executablePath is not null ? $" at '{executablePath}'" : "")}. Consider setting Lookup.TimeZoneDataPath.");
-                }
-            }
             try
             {
-                stream = File.OpenRead(dataPath);
+                stream = File.OpenRead(TimeZoneDataPath);
             }
             catch (Exception ex)
             {
-                throw new InvalidOperationException($"Could not open time zone data file '{dataPath}'", ex);
+                throw new InvalidOperationException($"Could not open time zone data file '{TimeZoneDataPath}'. Consider setting {nameof(TimeZoneDataStream)}.", ex);
             }
         }
 
@@ -348,7 +363,7 @@ public static class Lookup
         }
         catch (Exception ex)
         {
-            throw new InvalidOperationException($"Could not deserialize time zone data{(dataPath is not null ? $" from '{dataPath}'" : "")}.", ex);
+            throw new InvalidOperationException($"Could not deserialize time zone data from {(_timeZoneDataStream is null ? $"'{TimeZoneDataPath}'" : "the provided stream")}.", ex);
         }
 
         static TimeZoneTree LoadFromStream(Stream stream)
