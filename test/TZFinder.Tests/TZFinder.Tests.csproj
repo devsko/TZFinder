@@ -9,6 +9,14 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Using Include="Xunit" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Include="TimeZoneData.bin" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\..\src\TZFinder\TZFinder.csproj" />
   </ItemGroup>
 

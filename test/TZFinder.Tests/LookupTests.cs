@@ -1,7 +1,29 @@
-﻿namespace TZFinder.Tests;
+﻿using System.Collections.ObjectModel;
+
+namespace TZFinder.Tests;
 
 public static class LookupTests
 {
+    [Fact]
+    public static void LoadDataFile()
+    {
+        var timeZoneTrees = new TimeZoneTree[5];
+        Thread[] threads = Enumerable
+            .Range(0, timeZoneTrees.Length)
+            .Select(i => new Thread(() => StartLoadData(i)))
+            .ToArray();
+
+        foreach (Thread thread in threads) thread.Start();
+        foreach (Thread thread in threads) thread.Join();
+
+        Assert.All(timeZoneTrees, tree => Assert.True(ReferenceEquals(timeZoneTrees[0], tree)));
+
+        void StartLoadData(int i)
+        {
+            timeZoneTrees[i] = Lookup.TimeZoneTree;
+        }
+    }
+
     [Theory]
     [InlineData(0, "Etc/GMT")]
     [InlineData(.1f, "Etc/GMT")]
@@ -21,5 +43,13 @@ public static class LookupTests
     public static void EtcTimeZone(float longitude, string expected)
     {
         Assert.Equal(expected, Lookup.CalculateEtcTimeZoneId(longitude));
+    }
+
+    [Theory]
+    [InlineData(181f)]
+    [InlineData(-181f)]
+    public static void EtcTimeZone_Throws(float longitude)
+    {
+        Assert.Throws<ArgumentOutOfRangeException>(() => Lookup.CalculateEtcTimeZoneId(longitude));
     }
 }
