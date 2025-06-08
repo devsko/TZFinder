@@ -34,7 +34,6 @@ jobs:
         fetch-depth: 0 # avoid shallow clone so nbgv can do its work.
     - name: ⚙ Install prerequisites
       run: |
-        dotnet sln remove TimeZoneVisualizer
         ./init.ps1 -UpgradePrerequisites
         dotnet --info
 
