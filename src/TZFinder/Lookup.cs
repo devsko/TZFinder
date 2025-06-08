@@ -92,15 +92,27 @@ public static class Lookup
     public static ReadOnlyCollection<string> TimeZoneIds => _timeZoneIds ??= new(_timeZoneTree.Value.TimeZoneIds);
 
     /// <summary>
-    /// Gets the time zone index (1-based) for the specified time zone identifier.
+    /// Gets the 1-based index of the specified time zone identifier.
     /// </summary>
     /// <param name="timeZoneId">The time zone identifier to look up.</param>
-    /// <returns>The 1-based index of the specified time zone identifier.</returns>
-    /// <exception cref="ArgumentException">Thrown if the time zone identifier is unknown.</exception>
+    /// <returns>
+    /// The 1-based index of the specified time zone identifier.
+    /// </returns>
+    /// <exception cref="ArgumentNullException">Thrown if <paramref name="timeZoneId"/> is <see langword="null"/></exception>
+    /// <exception cref="ArgumentException">Thrown if the specified time zone identifier is unknown.</exception>
     public static short GetTimeZoneIndex(string timeZoneId)
     {
-#if NET10_0
-        short index = (short)((ReadOnlySpan<string>)_timeZoneTree.Value.TimeZoneIds).IndexOf(timeZoneId, StringComparer.OrdinalIgnoreCase);
+#if NET
+        ArgumentNullException.ThrowIfNull(timeZoneId);
+#else
+        if (timeZoneId is null)
+        {
+            throw new ArgumentNullException(nameof(timeZoneId));
+        }
+#endif
+
+#if NET10_0_OR_GREATER
+        short index = (short)MemoryExtensions.IndexOf(_timeZoneTree.Value.TimeZoneIds, timeZoneId, StringComparer.OrdinalIgnoreCase);
 #else
         short index = (short)Array.FindIndex(_timeZoneTree.Value.TimeZoneIds, item => string.Equals(item, timeZoneId, StringComparison.OrdinalIgnoreCase));
 #endif
@@ -109,13 +121,32 @@ public static class Lookup
     }
 
     /// <summary>
-    /// Gets the time zone identifier for the specified index.
+    /// Gets the time zone identifier for the specified 1-based index.
     /// </summary>
-    /// <param name="index">The time zone index (1-based).</param>
-    /// <returns>The time zone identifier corresponding to the index.</returns>
+    /// <param name="index">The 1-based index of the time zone identifier to retrieve.</param>
+    /// <returns>The time zone identifier corresponding to the specified index.</returns>
+    /// <exception cref="ArgumentOutOfRangeException">Thrown if <paramref name="index"/> is less than or equal to 0, or greater than to the number of available time zone identifiers.</exception>
     public static string GetTimeZoneId(short index)
     {
+#if NET
+        ArgumentOutOfRangeException.ThrowIfLessThanOrEqual(index, 0);
+        ArgumentOutOfRangeException.ThrowIfGreaterThan(index, _timeZoneTree.Value.TimeZoneIds.Length);
+#else
+        if (index <= 0 || index > _timeZoneTree.Value.TimeZoneIds.Length)
+        {
+            throw new ArgumentOutOfRangeException(nameof(index));
+        }
+#endif
+
         return _timeZoneTree.Value.TimeZoneIds[index - 1];
+    }
+
+    private static string GetTimeZoneId(short index, float longitude)
+    {
+        Debug.Assert(index >= 0 && index <= _timeZoneTree.Value.TimeZoneIds.Length);
+        Debug.Assert(longitude is >= -180f and <= 180f);
+
+        return index == 0 ? CalculateEtcTimeZoneId(longitude) : _timeZoneTree.Value.TimeZoneIds[index - 1];
     }
 
     /// <summary>
@@ -123,7 +154,10 @@ public static class Lookup
     /// </summary>
     /// <param name="longitude">The longitude in degrees.</param>
     /// <param name="latitude">The latitude in degrees.</param>
-    /// <returns>The <see cref="TimeZoneIndex"/> for the specified coordinates.</returns>
+    /// <returns>
+    /// The <see cref="TimeZoneIndex"/> corresponding to the specified geographic coordinates.
+    /// </returns>
+    /// <exception cref="ArgumentOutOfRangeException">Thrown if <paramref name="longitude"/> or <paramref name="latitude"/> is out of range.</exception>
     public static TimeZoneIndex GetTimeZoneIndex(float longitude, float latitude)
     {
         return _timeZoneTree.Value.Get(longitude, latitude).Index;
@@ -136,9 +170,11 @@ public static class Lookup
     /// <param name="latitude">The latitude in degrees.</param>
     /// <param name="box">When this method returns, contains the bounding box that includes the specified coordinates.</param>
     /// <returns>The <see cref="TimeZoneIndex"/> for the specified coordinates.</returns>
+    /// <exception cref="ArgumentOutOfRangeException">Thrown if <paramref name="longitude"/> or <paramref name="latitude"/> is out of range.</exception>
     public static TimeZoneIndex GetTimeZoneIndex(float longitude, float latitude, out BBox box)
     {
         (TimeZoneIndex index, box, _) = _timeZoneTree.Value.Get(longitude, latitude);
+
         return index;
     }
 
@@ -148,9 +184,10 @@ public static class Lookup
     /// <param name="longitude">The longitude in degrees.</param>
     /// <param name="latitude">The latitude in degrees.</param>
     /// <returns>The time zone identifier for the specified coordinates.</returns>
+    /// <exception cref="ArgumentOutOfRangeException">Thrown if <paramref name="longitude"/> or <paramref name="latitude"/> is out of range.</exception>
     public static string GetTimeZoneId(float longitude, float latitude)
     {
-        return _timeZoneTree.Value.TimeZoneIds[GetTimeZoneIndex(longitude, latitude).First];
+        return GetTimeZoneId(GetTimeZoneIndex(longitude, latitude).First, longitude);
     }
 
     /// <summary>
@@ -160,9 +197,10 @@ public static class Lookup
     /// <param name="latitude">The latitude in degrees.</param>
     /// <param name="box">When this method returns, contains the bounding box that includes the specified coordinates.</param>
     /// <returns>The time zone identifier for the specified coordinates.</returns>
+    /// <exception cref="ArgumentOutOfRangeException">Thrown if <paramref name="longitude"/> or <paramref name="latitude"/> is out of range.</exception>
     public static string GetTimeZoneId(float longitude, float latitude, out BBox box)
     {
-        return _timeZoneTree.Value.TimeZoneIds[GetTimeZoneIndex(longitude, latitude, out box).First];
+        return GetTimeZoneId(GetTimeZoneIndex(longitude, latitude, out box).First);
     }
 
     /// <summary>
@@ -171,20 +209,14 @@ public static class Lookup
     /// <param name="longitude">The longitude in degrees.</param>
     /// <param name="latitude">The latitude in degrees.</param>
     /// <returns>An enumerable of all time zone identifiers for the specified coordinates.</returns>
+    /// <exception cref="ArgumentOutOfRangeException">Thrown if <paramref name="longitude"/> or <paramref name="latitude"/> is out of range.</exception>
     public static IEnumerable<string> GetAllTimeZoneIds(float longitude, float latitude)
     {
         TimeZoneIndex index = GetTimeZoneIndex(longitude, latitude);
-        if (index.First == 0)
+        yield return GetTimeZoneId(index.First, longitude);
+        if (index.Second != 0)
         {
-            yield return CalculateEtcTimeZoneId(longitude);
-        }
-        else
-        {
-            yield return GetTimeZoneId(index.First);
-            if (index.Second != 0)
-            {
-                yield return GetTimeZoneId(index.Second);
-            }
+            yield return GetTimeZoneId(index.Second, 0);
         }
     }
 
@@ -193,9 +225,24 @@ public static class Lookup
     /// </summary>
     /// <param name="longitude">The longitude in degrees.</param>
     /// <returns>The etcetera time zone identifier (e.g., "Etc/GMT", "Etc/GMT+2").</returns>
+    /// <exception cref="ArgumentOutOfRangeException">Thrown if <paramref name="longitude"/> is out of range.</exception>
     public static string CalculateEtcTimeZoneId(float longitude)
     {
-        int offset = (int)Math.Round(-longitude / 15.0);
+#if NET
+        ArgumentOutOfRangeException.ThrowIfLessThan(longitude, -180f);
+        ArgumentOutOfRangeException.ThrowIfGreaterThan(longitude, 180f);
+#else
+        if (longitude is < -180f or > 180f)
+        {
+            throw new ArgumentOutOfRangeException(nameof(longitude));
+        }
+#endif
+
+#if NET
+        int offset = (int)MathF.Round(-longitude / 15f);
+#else
+        int offset = (int)Math.Round(-longitude / 15f);
+#endif
 
         return "Etc/GMT" + offset switch
         {
@@ -212,8 +259,18 @@ public static class Lookup
     /// <param name="longitude">The longitude in degrees.</param>
     /// <param name="latitude">The latitude in degrees.</param>
     /// <param name="action">The action to invoke for each bounding box.</param>
+    /// <exception cref="ArgumentOutOfRangeException">Thrown if <paramref name="longitude"/> or <paramref name="latitude"/> is out of range.</exception>
     public static void Traverse(float longitude, float latitude, Action<BBox> action)
     {
+#if NET
+        ArgumentNullException.ThrowIfNull(action);
+#else
+        if (action is null)
+        {
+            throw new ArgumentNullException(nameof(action));
+        }
+#endif
+
         TimeZoneIndex timeZoneIndex = GetTimeZoneIndex(longitude, latitude);
         _timeZoneTree.Value.Traverse((index, box) =>
         {
@@ -229,6 +286,7 @@ public static class Lookup
     /// </summary>
     /// <param name="timeZoneId">The time zone identifier.</param>
     /// <param name="action">The action to invoke for each bounding box.</param>
+    /// <exception cref="ArgumentNullException">Thrown if <paramref name="timeZoneId"/> is <see langword="null"/></exception>
     /// <exception cref="ArgumentException">Thrown if the time zone identifier is unknown.</exception>
     public static void Traverse(string timeZoneId, Action<BBox> action)
     {
@@ -299,5 +357,4 @@ public static class Lookup
             return TimeZoneTree.Deserialize(zip);
         }
     }
-
 }

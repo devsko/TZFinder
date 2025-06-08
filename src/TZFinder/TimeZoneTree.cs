@@ -75,13 +75,30 @@ public class TimeZoneTree
     /// <summary>
     /// Finds the time zone index, bounding box, and tree level for the specified geographic coordinates.
     /// </summary>
-    /// <param name="longitude">The longitude in degrees.</param>
-    /// <param name="latitude">The latitude in degrees.</param>
+    /// <param name="longitude">The longitude in degrees, between -180 and 180.</param>
+    /// <param name="latitude">The latitude in degrees, between -90 and 90.</param>
     /// <returns>
-    /// A tuple containing the <see cref="TimeZoneIndex"/>, <see cref="BBox"/>, and the tree level.
+    /// A tuple containing the <see cref="TimeZoneIndex"/> for the location, the <see cref="BBox"/> bounding box of the leaf node, and the tree level.
     /// </returns>
+    /// <exception cref="ArgumentOutOfRangeException">Thrown if <paramref name="longitude"/> or <paramref name="latitude"/> is out of range.</exception>
     public (TimeZoneIndex Index, BBox Box, int Level) Get(float longitude, float latitude)
     {
+#if NET
+        ArgumentOutOfRangeException.ThrowIfLessThan(longitude, -180f);
+        ArgumentOutOfRangeException.ThrowIfGreaterThan(longitude, 180f);
+        ArgumentOutOfRangeException.ThrowIfLessThan(latitude, -90f);
+        ArgumentOutOfRangeException.ThrowIfGreaterThan(latitude, 90f);
+#else
+        if (longitude is < -180f or > 180f)
+        {
+            throw new ArgumentOutOfRangeException(nameof(longitude));
+        }
+        if (latitude is < -90f or > 90f)
+        {
+            throw new ArgumentOutOfRangeException(nameof(latitude));
+        }
+#endif
+
         return Get(_root, longitude, latitude, BBox.World, 0);
 
         static (TimeZoneIndex Index, BBox Box, int Level) Get(TimeZoneNode node, float longitude, float latitude, BBox box, int level)
