@@ -33,7 +33,7 @@ public sealed partial class MainPage : Page
         float latitude = (float)args.Location.Position.Latitude;
 
         Stopwatch watch = Stopwatch.StartNew();
-        string timeZoneIds = string.Join(", ", Lookup.GetAllTimeZoneIds(longitude, latitude, out TimeZoneIndex index));
+        string timeZoneIds = string.Join(", ", Lookup.GetAllTimeZoneIds(longitude, latitude, out BBox box, out TimeZoneIndex index));
         watch.Stop();
 
         TimeZone.Text = $"{timeZoneIds} {watch.ElapsedTicks} ticks";
@@ -42,26 +42,32 @@ public sealed partial class MainPage : Page
         {
             _timeZoneLayer.MapElements.Clear();
 
-            MapPolygon polygon = new();
+            MapPolygon boxPolygon = new();
+            boxPolygon.Path = CreatePath(box);
 
-            Lookup.Traverse(index, box =>
-            {
-                polygon.Paths.Add(new Geopath(new GeopositionEnumerable([
-                    new(box.SouthWest.Latitude, box.SouthWest.Longitude, 0),
-                    new(box.SouthWest.Latitude, box.NorthEast.Longitude, 0),
-                    new(box.NorthEast.Latitude, box.NorthEast.Longitude, 0),
-                    new(box.NorthEast.Latitude, box.SouthWest.Longitude, 0),
-                        ])));
-            });
+            MapPolygon timeZonePolygon = new();
+            Lookup.Traverse(index, box => timeZonePolygon.Paths.Add(CreatePath(box)));
 
             int hash = index.First ^ index.Second;
-            polygon.FillColor = Color.FromArgb(0x80, (byte)(hash * 200 % 256), (byte)(hash * 700 % 256), (byte)(hash * 1100 % 256));
-            polygon.StrokeColor = Color.FromArgb(0xc0, 0, 0, 0);
-            polygon.StrokeThickness = 1;
+            Color color = Color.FromArgb(0x80, (byte)(hash * 200 % 256), (byte)(hash * 700 % 256), (byte)(hash * 1100 % 256));
 
-            _timeZoneLayer.MapElements.Add(polygon);
+            boxPolygon.FillColor = color;
+
+            timeZonePolygon.FillColor = color;
+            timeZonePolygon.StrokeColor = Color.FromArgb(0xc0, 0, 0, 0);
+            timeZonePolygon.StrokeThickness = 1;
+
+            _timeZoneLayer.MapElements.Add(boxPolygon);
+            _timeZoneLayer.MapElements.Add(timeZonePolygon);
 
             _currentIndex = index;
         }
+
+        Geopath CreatePath(BBox box) => new(new GeopositionEnumerable([
+            new(box.SouthWest.Latitude, box.SouthWest.Longitude, 0),
+            new(box.SouthWest.Latitude, box.NorthEast.Longitude, 0),
+            new(box.NorthEast.Latitude, box.NorthEast.Longitude, 0),
+            new(box.NorthEast.Latitude, box.SouthWest.Longitude, 0),
+        ]));
     }
 }

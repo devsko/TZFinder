@@ -211,6 +211,7 @@ public static class Lookup
     /// </summary>
     /// <param name="longitude">The longitude in degrees.</param>
     /// <param name="latitude">The latitude in degrees.</param>
+    /// <param name="box">When this method returns, contains the bounding box that includes the specified coordinates.</param>
     /// <param name="index">
     /// When this method returns, contains the <see cref="TimeZoneIndex"/> corresponding to the specified coordinates.
     /// </param>
@@ -218,9 +219,9 @@ public static class Lookup
     /// An <see cref="IEnumerable{T}"/> of time zone identifiers for the specified coordinates. If the location is in an area with overlapping time zones, all relevant identifiers are returned.
     /// </returns>
     /// <exception cref="ArgumentOutOfRangeException">Thrown if <paramref name="longitude"/> or <paramref name="latitude"/> is out of range.</exception>
-    public static IEnumerable<string> GetAllTimeZoneIds(float longitude, float latitude, out TimeZoneIndex index)
+    public static IEnumerable<string> GetAllTimeZoneIds(float longitude, float latitude, out BBox box, out TimeZoneIndex index)
     {
-        index = GetTimeZoneIndex(longitude, latitude);
+        index = GetTimeZoneIndex(longitude, latitude, out box);
 
         return Enumerate(index, longitude);
 
