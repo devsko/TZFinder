@@ -9,7 +9,7 @@
     <!-- Put repo-specific PackageVersion items in this group. -->
   </ItemGroup>
   <ItemGroup Label="Library.Template">
-    <PackageVersion Include="devsko.Spectre.Builder" Version="0.2.19-preview" />
+    <PackageVersion Include="devsko.Spectre.Builder" Version="0.2.20-preview" />
     <PackageVersion Include="GeoJson.aot" Version="1.0.0" />
     <PackageVersion Include="System.Runtime.CompilerServices.Unsafe" Version="6.1.2" />
     <PackageVersion Include="xunit.v3" Version="2.0.2" />
