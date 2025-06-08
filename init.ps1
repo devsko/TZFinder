@@ -75,14 +75,15 @@ if (!$NoPrerequisites) {
     }
 }
 
-# Temporary workaround
-dotnet sln remove TimeZoneVisualizer
-
 # Workaround nuget credential provider bug that causes very unreliable package restores on Azure Pipelines
 $env:NUGET_PLUGIN_HANDSHAKE_TIMEOUT_IN_SECONDS = 20
 $env:NUGET_PLUGIN_REQUEST_TIMEOUT_IN_SECONDS = 20
 
 Push-Location $PSScriptRoot
+
+# Temporary workaround
+dotnet sln remove TimeZoneVisualizer
+
 try {
     $HeaderColor = 'Green'
 
