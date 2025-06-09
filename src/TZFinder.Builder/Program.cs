@@ -4,4 +4,4 @@
 using ConsoleAppFramework;
 using TZFinder.Builder;
 
-await ConsoleApp.RunAsync(args, Builder.RunAsync);
+await ConsoleApp.RunAsync(args, Context.CreateAndRunAsync);
