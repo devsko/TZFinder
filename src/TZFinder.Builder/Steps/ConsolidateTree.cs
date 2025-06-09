@@ -31,7 +31,7 @@ public class ConsolidateTree : ConversionStep
     }
 
     /// <inheritdoc/>
-    protected override Task ExecuteAsync(BuilderContext builderContext, DateTime timestamp)
+    protected override Task ExecuteAsync(BuilderContext builderContext, DateTime timestamp, CancellationToken cancellationToken)
     {
         Context context = (Context)builderContext;
 
@@ -40,7 +40,7 @@ public class ConsolidateTree : ConversionStep
 
         context.SetTotal(this, context.NodeCount);
 
-        timeZoneContext.Consolidate(timeZoneTree, new ProgressSlim<int>(nodes => context.SetProgress(this, nodes)));
+        timeZoneContext.Consolidate(timeZoneTree, new ProgressSlim<int>(nodes => context.SetProgress(this, nodes)), cancellationToken);
 
         return Task.CompletedTask;
     }

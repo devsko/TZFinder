@@ -100,6 +100,7 @@ public sealed partial class TimeZoneContext
     /// <param name="minRingDistance">
     /// The minimum distance in meters between consecutive points in a ring. Points closer than this distance will be filtered out.
     /// </param>
+    /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
     /// <returns>
     /// A <see cref="Task{TimeZoneContext}"/> representing the asynchronous operation, with the loaded <see cref="TimeZoneContext"/> as the result.
     /// </returns>
@@ -109,14 +110,16 @@ public sealed partial class TimeZoneContext
     /// <exception cref="NotSupportedException">
     /// Thrown if the geometry type in the GeoJSON is not supported (i.e., not <see cref="Polygon"/> or <see cref="MultiPolygon"/>).
     /// </exception>
-    public static async Task<TimeZoneContext> LoadAsync(Stream stream, int minRingDistance)
+    public static async Task<TimeZoneContext> LoadAsync(Stream stream, int minRingDistance, CancellationToken cancellationToken)
     {
         GeoSingle2D geo = new(JsonContext.Default, typeof(TimeZoneProperties));
-        FeatureCollection<TimeZoneProperties> collection = await geo.DeserializeAsync<FeatureCollection<TimeZoneProperties>>(stream) ?? throw new InvalidOperationException();
+        FeatureCollection<TimeZoneProperties> collection = await geo.DeserializeAsync<FeatureCollection<TimeZoneProperties>>(stream, cancellationToken) ?? throw new InvalidOperationException();
 
         TimeZoneContext context = new();
         foreach (Feature<TimeZoneProperties> feature in collection.Features)
         {
+            cancellationToken.ThrowIfCancellationRequested();
+
             List<Position>[] included;
             List<Position>[] excluded;
             if (feature.Geometry is Polygon polygon)
@@ -173,18 +176,21 @@ public sealed partial class TimeZoneContext
     /// <param name="progress">
     /// An optional <see cref="IProgress{T}"/> instance to report the number of sources processed.
     /// </param>
+    /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
     /// <returns>
     /// A <see cref="TimeZoneBuilderTree"/> containing all loaded time zone sources.
     /// </returns>
-    public (TimeZoneBuilderTree Tree, int NodeCount) CreateTree(int maxLevel, IProgress<int>? progress = null)
+    public (TimeZoneBuilderTree Tree, int NodeCount) CreateTree(int maxLevel, IProgress<int> progress, CancellationToken cancellationToken)
     {
         TimeZoneBuilderTree tree = new([.. Sources.Select(source => source.Id)]);
         int count = 0;
         int nodeCount = 1;
         foreach (TimeZoneSource source in Sources)
         {
+            cancellationToken.ThrowIfCancellationRequested();
+
             nodeCount += Add(tree, source, maxLevel);
-            progress?.Report(++count);
+            progress.Report(++count);
         }
 
         return (tree, nodeCount);
@@ -259,7 +265,8 @@ public sealed partial class TimeZoneContext
     /// <param name="progress">
     /// An optional <see cref="IProgress{T}"/> instance to report the number of nodes processed.
     /// </param>
-    public void Consolidate(TimeZoneBuilderTree tree, IProgress<int> progress)
+    /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
+    public void Consolidate(TimeZoneBuilderTree tree, IProgress<int> progress, CancellationToken cancellationToken)
     {
         TimeZoneIndex[] indices = new TimeZoneIndex[25];
         int count = 0;
@@ -268,6 +275,8 @@ public sealed partial class TimeZoneContext
 
         void Consolidate(TimeZoneBuilderNode node, TimeZoneIndex2 index, BBox box, int level)
         {
+            cancellationToken.ThrowIfCancellationRequested();
+
             Dictionary<short, TimeZoneSource> sources = _sources;
 
             foreach (short nodeIndex in GetMultipleTimeZones(node, _multipleTimeZones))

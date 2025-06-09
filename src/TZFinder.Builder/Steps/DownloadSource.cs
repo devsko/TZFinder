@@ -21,7 +21,7 @@ public partial class DownloadSource : ConversionStep
     }
 
     /// <inheritdoc/>
-    protected override async Task ExecuteAsync(BuilderContext builderContext, DateTime timestamp)
+    protected override async Task ExecuteAsync(BuilderContext builderContext, DateTime timestamp, CancellationToken cancellationToken)
     {
         Context context = (Context)builderContext;
 
@@ -29,7 +29,8 @@ public partial class DownloadSource : ConversionStep
 
         using HttpResponseMessage response = await context.Client.GetAsync(
             $"https://github.com/{Context.SourceRepository}/releases/download/{context.SourceRelease}/{context.SourceFileName}.zip",
-            HttpCompletionOption.ResponseHeadersRead);
+            HttpCompletionOption.ResponseHeadersRead,
+            cancellationToken);
 
         if (!response.IsSuccessStatusCode)
         {
@@ -41,16 +42,16 @@ public partial class DownloadSource : ConversionStep
 
             await using ZipArchive zip = await ZipArchive.CreateAsync(
                 new ProgressStream(
-                    await response.Content.ReadAsStreamAsync(),
+                    await response.Content.ReadAsStreamAsync(cancellationToken),
                     bytes => context.IncrementProgress(this, bytes)),
-                ZipArchiveMode.Read, leaveOpen: false, entryNameEncoding: null);
+                ZipArchiveMode.Read, leaveOpen: false, entryNameEncoding: null, cancellationToken);
 
             ZipArchiveEntry? entry = zip.Entries[0] ?? throw new InvalidOperationException();
 
             await using PreliminaryFileStream fileStream = sourceFile.OpenCreate(0, timestamp);
-            await using Stream entryStream = await entry.OpenAsync();
+            await using Stream entryStream = await entry.OpenAsync(cancellationToken);
 
-            await entryStream.CopyToAsync(fileStream);
+            await entryStream.CopyToAsync(fileStream, cancellationToken);
 
             fileStream.Persist();
         }

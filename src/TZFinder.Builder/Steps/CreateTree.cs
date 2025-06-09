@@ -28,7 +28,7 @@ public class CreateTree : ConversionStep
     }
 
     /// <inheritdoc/>
-    protected override Task ExecuteAsync(BuilderContext builderContext, DateTime timestamp)
+    protected override Task ExecuteAsync(BuilderContext builderContext, DateTime timestamp, CancellationToken cancellationToken)
     {
         Context context = (Context)builderContext;
 
@@ -36,7 +36,7 @@ public class CreateTree : ConversionStep
 
         context.SetTotal(this, timeZoneContext.Sources.Count);
 
-        (context.TimeZoneTree, context.NodeCount) = timeZoneContext.CreateTree(context.MaxLevel, new ProgressSlim<int>(sources => context.SetProgress(this, sources)));
+        (context.TimeZoneTree, context.NodeCount) = timeZoneContext.CreateTree(context.MaxLevel, new ProgressSlim<int>(sources => context.SetProgress(this, sources)), cancellationToken);
 
         return Task.CompletedTask;
     }

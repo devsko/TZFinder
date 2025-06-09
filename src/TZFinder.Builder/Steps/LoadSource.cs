@@ -24,7 +24,7 @@ public class LoadSource : ConversionStep
     }
 
     /// <inheritdoc/>
-    protected override async Task ExecuteAsync(BuilderContext builderContext, DateTime timestamp)
+    protected override async Task ExecuteAsync(BuilderContext builderContext, DateTime timestamp, CancellationToken cancellationToken)
     {
         Context context = (Context)builderContext;
 
@@ -34,6 +34,6 @@ public class LoadSource : ConversionStep
 
         context.SetTotal(this, content.Length);
 
-        context.TimeZoneContext = await TimeZoneContext.LoadAsync(content, context.MinRingDistance);
+        context.TimeZoneContext = await TimeZoneContext.LoadAsync(content, context.MinRingDistance, cancellationToken);
     }
 }

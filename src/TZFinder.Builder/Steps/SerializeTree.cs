@@ -26,7 +26,7 @@ public class SerializeTree : ConversionStep
     }
 
     /// <inheritdoc/>
-    protected override async Task ExecuteAsync(BuilderContext builderContext, DateTime timestamp)
+    protected override async Task ExecuteAsync(BuilderContext builderContext, DateTime timestamp, CancellationToken cancellationToken)
     {
         Context context = (Context)builderContext;
 

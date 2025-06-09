@@ -35,7 +35,7 @@ public static class Builder
             release = latestRelease.GetProperty("tag_name").GetString()!;
         }
 
-        Context context = new(client, release, includeOceans, maxLevel, minRingDistance);
+        Context context = new(client, release, includeOceans, maxLevel, minRingDistance, cancellationToken);
 
         await context.RunAsync(
             Step.Sequential("Create time zone data",
@@ -49,6 +49,6 @@ public static class Builder
             [
                 new MemoryInfo(),
                 new GCTimeInfo(),
-            ], cancellationToken);
+            ]);
     }
 }

@@ -75,7 +75,9 @@ public class Context : BuilderContext
     /// <param name="includeOceans">If <see langword="true"/>, use the time zone data file without oceans; otherwise, include oceans.</param>
     /// <param name="maxLevel">The maximum depth level for the time zone builder tree.</param>
     /// <param name="minRingDistance">The minimum distance in meters between consecutive points in a ring.</param>
-    public Context(HttpClient client, string sourceRelease, bool includeOceans, int maxLevel, int minRingDistance)
+    /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
+    public Context(HttpClient client, string sourceRelease, bool includeOceans, int maxLevel, int minRingDistance, CancellationToken cancellationToken)
+        : base(cancellationToken)
     {
         Client = client;
         SourceRelease = sourceRelease;
