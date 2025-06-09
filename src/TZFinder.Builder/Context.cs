@@ -89,7 +89,7 @@ public class Context : BuilderContext
         Directory.CreateDirectory(baseAppDataPath);
 
         SourceFile = new FileResource(Path.Combine(baseAppDataPath, $"{SourceRelease}_{SourceFileName}"));
-        TimeZoneDataFile = new FileResource(Path.Combine(baseAppDataPath, $"{MaxLevel}_{MinRingDistance}_{(includeOceans ? "No" : "With")}_{Lookup.DataFileName}"));
+        TimeZoneDataFile = new FileResource(Path.Combine(baseAppDataPath, $"{MaxLevel}_{MinRingDistance}_{(includeOceans ? "NoEtc" : "Etc")}_{Lookup.DataFileName}"));
         TimeZoneCalculation = new CalculationResource(TimeZoneDataFile);
     }
 }
