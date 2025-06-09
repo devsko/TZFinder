@@ -9,22 +9,20 @@ namespace TZFinder.Builder.Steps;
 /// <summary>
 /// Represents a conversion step that downloads the time zone boundary file from the timezone-boundary-builder GitHub repository.
 /// </summary>
-public partial class DownloadSource : ConversionStep
+public partial class DownloadSource : ConversionStep<Context>
 {
     /// <inheritdoc/>
     public override string Name => "Download time zone file";
 
     /// <inheritdoc/>
-    protected override IEnumerable<IResource> GetOutputs(BuilderContext context)
+    protected override IEnumerable<IResource> GetOutputs(Context context)
     {
-        yield return ((Context)context).SourceFile;
+        yield return context.SourceFile;
     }
 
     /// <inheritdoc/>
-    protected override async Task ExecuteAsync(BuilderContext builderContext, DateTime timestamp, CancellationToken cancellationToken)
+    protected override async Task ExecuteAsync(Context context, DateTime timestamp, CancellationToken cancellationToken)
     {
-        Context context = (Context)builderContext;
-
         FileResource sourceFile = context.SourceFile;
 
         using HttpResponseMessage response = await context.Client.GetAsync(
@@ -34,7 +32,7 @@ public partial class DownloadSource : ConversionStep
 
         if (!response.IsSuccessStatusCode)
         {
-            context.Fail(this, $"Failed with status code {response.StatusCode}");
+            context.Fail(this, $"Download failed with status code {response.StatusCode}");
         }
         else
         {

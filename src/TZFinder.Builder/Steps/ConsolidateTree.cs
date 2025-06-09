@@ -10,7 +10,7 @@ namespace TZFinder.Builder.Steps;
 /// as inputs, and produces a consolidated tree as output. The consolidation process traverses the tree, updating each node's
 /// time zone indices to account for included and excluded regions, and optionally reports progress.
 /// </summary>
-public class ConsolidateTree : ConversionStep
+public class ConsolidateTree : ConversionStep<Context>
 {
     /// <inheritdoc/>
     public override string Name => "Consolidating nodes";
@@ -19,22 +19,20 @@ public class ConsolidateTree : ConversionStep
     protected override bool ShowProgressAsDataSize => false;
 
     /// <inheritdoc/>
-    protected override IEnumerable<IResource> GetInputs(BuilderContext context)
+    protected override IEnumerable<IResource> GetInputs(Context context)
     {
-        yield return ((Context)context).SourceFile;
+        yield return context.SourceFile;
     }
 
     /// <inheritdoc/>
-    protected override IEnumerable<IResource> GetOutputs(BuilderContext context)
+    protected override IEnumerable<IResource> GetOutputs(Context context)
     {
-        yield return ((Context)context).TimeZoneCalculation;
+        yield return context.TimeZoneCalculation;
     }
 
     /// <inheritdoc/>
-    protected override Task ExecuteAsync(BuilderContext builderContext, DateTime timestamp, CancellationToken cancellationToken)
+    protected override Task ExecuteAsync(Context context, DateTime timestamp, CancellationToken cancellationToken)
     {
-        Context context = (Context)builderContext;
-
         TimeZoneBuilderTree timeZoneTree = context.TimeZoneTree ?? throw new InvalidOperationException();
         TimeZoneContext timeZoneContext = context.TimeZoneContext ?? throw new InvalidOperationException();
 

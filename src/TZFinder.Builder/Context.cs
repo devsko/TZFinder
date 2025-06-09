@@ -11,7 +11,7 @@ namespace TZFinder.Builder;
 /// CS9032 prevents making all property initializer private.
 /// </remarks>
 /// </summary>
-public class Context : BuilderContext
+public class Context : BuilderContext<Context>
 {
     /// <summary>
     /// The GitHub repository for the timezone boundary builder.
@@ -79,61 +79,98 @@ public class Context : BuilderContext
     /// <summary>
     /// Runs the builder.
     /// </summary>
+    /// <param name="output">-o, Relative or absolute path to the output directory</param>
     /// <param name="maxLevel">-l, Maximum precision level</param>
     /// <param name="minRingDistance">-d, Minimum distance between 2 positions in rings</param>
     /// <param name="release">-r, Release tag of Timezone Boundary Builder</param>
     /// <param name="includeEtc">-e, Include etcetera time zones</param>
+    /// <param name="force"></param>
     /// <param name="cancellationToken">The cancellationToken</param>
     /// <returns></returns>
     public static async Task CreateAndRunAsync(
+        string output = "",
         int maxLevel = 25,
         int minRingDistance = 500,
         string release = "latest",
         bool includeEtc = false,
+        bool force = false,
         CancellationToken cancellationToken = default)
     {
-        HttpClient client = new();
-        client.DefaultRequestHeaders.Add("User-Agent", "TZFinder");
-
-        if (release == "latest")
+        try
         {
-            JsonElement latestRelease = await client.GetFromJsonAsync<JsonElement>($"https://api.github.com/repos/{SourceRepository}/releases/latest", cancellationToken);
-            release = latestRelease.GetProperty("tag_name").GetString()!;
+            if (!Path.IsPathFullyQualified(output))
+            {
+                if (Path.IsPathRooted(output))
+                {
+                    throw new ArgumentException("The output directory must be either fully qualified or relative.");
+                }
+                output = Path.Combine(Environment.CurrentDirectory, output);
+            }
+
+            Directory.CreateDirectory(output);
+            string outputPath = Path.Combine(output, Lookup.DataFileName);
+
+            HttpClient client = new();
+            client.DefaultRequestHeaders.Add("User-Agent", "TZFinder");
+
+            if (release == "latest")
+            {
+                JsonElement latestRelease = await client.GetFromJsonAsync<JsonElement>($"https://api.github.com/repos/{SourceRepository}/releases/latest", cancellationToken);
+                release = latestRelease.GetProperty("tag_name").GetString()!;
+            }
+
+            string sourceFileName = includeEtc ? "timezones-with-oceans.geojson" : "timezones.geojson";
+
+            string releasePath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "TZFinder", release);
+            Directory.CreateDirectory(releasePath);
+
+            FileResource sourceFile = new(Path.Combine(releasePath, sourceFileName));
+            FileResource timeZoneDataFile = new(Path.Combine(releasePath, $"{maxLevel}_{minRingDistance}_{(includeEtc ? "Etc" : "NoEtc")}_{Lookup.DataFileName}"));
+            CalculationResource timeZoneCalculation = new(timeZoneDataFile);
+
+            Context context = new(cancellationToken)
+            {
+                Client = client,
+                SourceRelease = release,
+                SourceFileName = sourceFileName,
+                MaxLevel = maxLevel,
+                MinRingDistance = minRingDistance,
+                SourceFile = sourceFile,
+                TimeZoneDataFile = timeZoneDataFile,
+                TimeZoneCalculation = timeZoneCalculation,
+            };
+
+            await context.RunAsync(
+                Step<Context>.Sequential("Create time zone data",
+                [
+                    new DownloadSource(),
+                    new LoadSource(),
+                    new CreateTree(),
+                    new ConsolidateTree(),
+                    new SerializeTree(),
+                ]),
+                [
+                    new MemoryInfo(),
+                    new GCTimeInfo(),
+                ]);
+
+            Console.WriteLine();
+            if (!force && File.Exists(outputPath))
+            {
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.WriteLine($"Time zone data file already exists: {outputPath}");
+                Console.WriteLine("To overwrite the file, run the command with --force option.");
+            }
+            else
+            {
+                File.Copy(context.TimeZoneDataFile.Path, outputPath, overwrite: true);
+                Console.WriteLine($"Time zone data file created: {outputPath}");
+            }
         }
-
-        string sourceFileName = includeEtc ? "timezones-with-oceans.geojson" : "timezones.geojson";
-
-        string baseAppDataPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "TZFinder");
-        Directory.CreateDirectory(baseAppDataPath);
-
-        FileResource sourceFile = new(Path.Combine(baseAppDataPath, $"{release}_{sourceFileName}"));
-        FileResource timeZoneDataFile = new(Path.Combine(baseAppDataPath, $"{maxLevel}_{minRingDistance}_{(includeEtc ? "NoEtc" : "Etc")}_{Lookup.DataFileName}"));
-        CalculationResource timeZoneCalculation = new(timeZoneDataFile);
-
-        Context context = new(cancellationToken)
+        catch (Exception ex)
         {
-            Client = client,
-            SourceRelease = release,
-            SourceFileName = sourceFileName,
-            MaxLevel = maxLevel,
-            MinRingDistance = minRingDistance,
-            SourceFile = sourceFile,
-            TimeZoneDataFile = timeZoneDataFile,
-            TimeZoneCalculation = timeZoneCalculation,
-        };
-
-        await context.RunAsync(
-            Step.Sequential("Create time zone data",
-            [
-                new DownloadSource(),
-                new LoadSource(),
-                new CreateTree(),
-                new ConsolidateTree(),
-                new SerializeTree(),
-            ]),
-            [
-                new MemoryInfo(),
-                new GCTimeInfo(),
-            ]);
+            Console.ForegroundColor = ConsoleColor.Red;
+            Console.WriteLine(ex.Message);
+        }
     }
 }

@@ -7,7 +7,7 @@ namespace TZFinder.Builder.Steps;
 /// This step is responsible for building the hierarchical tree of time zone nodes using the sources
 /// loaded in the <see cref="TimeZoneContext"/>. It reports progress as each source is processed.
 /// </summary>
-public class CreateTree : ConversionStep
+public class CreateTree : ConversionStep<Context>
 {
     /// <inheritdoc/>
     public override string Name => "Processing time zones";
@@ -16,22 +16,20 @@ public class CreateTree : ConversionStep
     protected override bool ShowProgressAsDataSize => false;
 
     /// <inheritdoc/>
-    protected override IEnumerable<IResource> GetInputs(BuilderContext context)
+    protected override IEnumerable<IResource> GetInputs(Context context)
     {
-        yield return ((Context)context).SourceFile;
+        yield return context.SourceFile;
     }
 
     /// <inheritdoc/>
-    protected override IEnumerable<IResource> GetOutputs(BuilderContext context)
+    protected override IEnumerable<IResource> GetOutputs(Context context)
     {
-        yield return ((Context)context).TimeZoneCalculation;
+        yield return context.TimeZoneCalculation;
     }
 
     /// <inheritdoc/>
-    protected override Task ExecuteAsync(BuilderContext builderContext, DateTime timestamp, CancellationToken cancellationToken)
+    protected override Task ExecuteAsync(Context context, DateTime timestamp, CancellationToken cancellationToken)
     {
-        Context context = (Context)builderContext;
-
         TimeZoneContext timeZoneContext = context.TimeZoneContext ?? throw new InvalidOperationException();
 
         context.SetTotal(this, timeZoneContext.Sources.Count);
