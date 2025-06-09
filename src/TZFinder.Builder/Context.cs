@@ -90,7 +90,7 @@ public class Context : BuilderContext<Context>
     public static async Task CreateAndRunAsync(
         string output = "",
         int maxLevel = 25,
-        int minRingDistance = 500,
+        int minRingDistance = 600,
         string release = "latest",
         bool includeEtc = false,
         bool force = false,

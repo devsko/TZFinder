@@ -5,6 +5,11 @@
     <IsAotCompatible Condition="$([MSBuild]::IsTargetFrameworkCompatible('$(TargetFramework)', 'net7.0'))">true</IsAotCompatible>
   </PropertyGroup>
 
+  <ItemGroup>
+    <None Include="build\**" Pack="true" PackagePath="build;buildTransitive" />
+    <None Include="data\*.bin" Pack="true" PackagePath="data" />
+  </ItemGroup>
+  
   <ItemGroup Condition="'$(TargetFramework)' == 'netstandard2.0'">
     <PackageReference Include="System.Runtime.CompilerServices.Unsafe" />
   </ItemGroup>

@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+
+  <PropertyGroup>
+    <TimeZoneDataFile Condition="'$(TimeZoneDataFile)' == ''">Medium</TimeZoneDataFile>
+    <_TimeZoneDataFile Condition="'$(TimeZoneDataFile)' == 'Small'">20_5000_NoEtc_TimeZoneData.bin</_TimeZoneDataFile>
+    <_TimeZoneDataFile Condition="'$(TimeZoneDataFile)' == 'Medium'">25_600_NoEtc_TimeZoneData.bin</_TimeZoneDataFile>
+    <_TimeZoneDataFile Condition="'$(TimeZoneDataFile)' == 'Large'">30_152_NoEtc_TimeZoneData.bin</_TimeZoneDataFile>
+  </PropertyGroup>
+
+  <ItemGroup Condition="'$(_TimeZoneDataFile)' != ''">
+    <Content Include="$(MSBuildThisFileDirectory)..\..\data\$(_TimeZoneDataFile)"
+             Link="TimeZoneData.bin"
+             CopyToOutputDirectory="PreserveNewest"
+             Visible="false" />
+  </ItemGroup>
+  
+</Project>
