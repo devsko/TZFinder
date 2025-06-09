@@ -12,13 +12,13 @@ public class LoadSource : ConversionStep
     public override string Name => "Loading source data";
 
     /// <inheritdoc/>
-    protected override async IAsyncEnumerable<IResource> GetInputsAsync(BuilderContext context)
+    protected override IEnumerable<IResource> GetInputs(BuilderContext context)
     {
         yield return ((Context)context).SourceFile;
     }
 
     /// <inheritdoc/>
-    protected override async IAsyncEnumerable<IResource> GetOutputsAsync(BuilderContext context)
+    protected override IEnumerable<IResource> GetOutputs(BuilderContext context)
     {
         yield return ((Context)context).TimeZoneCalculation;
     }
@@ -34,6 +34,6 @@ public class LoadSource : ConversionStep
 
         context.SetTotal(this, content.Length);
 
-        context.TimeZoneContext = await TimeZoneContext.LoadAsync(content);
+        context.TimeZoneContext = await TimeZoneContext.LoadAsync(content, context.MinRingDistance);
     }
 }

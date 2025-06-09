@@ -9,7 +9,8 @@
     <!-- Put repo-specific PackageVersion items in this group. -->
   </ItemGroup>
   <ItemGroup Label="Library.Template">
-    <PackageVersion Include="devsko.Spectre.Builder" Version="0.2.20-preview" />
+    <PackageVersion Include="ConsoleAppFramework" Version="5.4.1" />
+    <PackageVersion Include="devsko.Spectre.Builder" Version="0.2.23-preview" />
     <PackageVersion Include="GeoJson.aot" Version="1.0.0" />
     <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />
     <PackageVersion Include="System.Runtime.CompilerServices.Unsafe" Version="6.1.2" />

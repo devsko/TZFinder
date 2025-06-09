@@ -1,7 +1,4 @@
-﻿using System.Diagnostics.CodeAnalysis;
-using System.Net.Http.Json;
-using System.Text.Json;
-using Spectre.Builder;
+﻿using Spectre.Builder;
 
 namespace TZFinder.Builder;
 
@@ -16,20 +13,44 @@ public class Context : BuilderContext
     public const string SourceRepository = "evansiroky/timezone-boundary-builder";
 
     /// <summary>
-    /// The file name for the time zone GeoJSON file.
-    /// </summary>
-    public const string SourceFileName = "timezones.geojson";
-    //public const string SourceFileName = "timezones-with-oceans.geojson";
-
-    /// <summary>
     /// Gets the <see cref="HttpClient"/> used for HTTP requests.
     /// </summary>
-    public HttpClient Client { get; } = CreateClient();
+    public HttpClient Client { get; }
 
     /// <summary>
     /// Gets the tag name of the latest timezone boundary builder release.
     /// </summary>
-    public string? SourceRelease { get; private set; }
+    public string SourceRelease { get; }
+
+    /// <summary>
+    /// Gets the name of the source file used for time zone data.
+    /// </summary>
+    public string SourceFileName { get; }
+
+    /// <summary>
+    /// Gets the maximum depth level for the time zone builder tree.
+    /// </summary>
+    public int MaxLevel { get; }
+
+    /// <summary>
+    /// Gets the minimum distance in meters between consecutive points in a ring.
+    /// </summary>
+    public int MinRingDistance { get; }
+
+    /// <summary>
+    /// Gets the <see cref="FileResource"/> representing the source file.
+    /// </summary>
+    public FileResource SourceFile { get; }
+
+    /// <summary>
+    /// Gets the <see cref="FileResource"/> representing the time zone file.
+    /// </summary>
+    public FileResource TimeZoneDataFile { get; }
+
+    /// <summary>
+    /// Gets the <see cref="CalculationResource"/> representing the time zone calculation resource.
+    /// </summary>
+    public CalculationResource TimeZoneCalculation { get; }
 
     /// <summary>
     /// Gets or sets the <see cref="TimeZoneContext"/> for the current run.
@@ -42,53 +63,31 @@ public class Context : BuilderContext
     public TimeZoneBuilderTree? TimeZoneTree { get; set; }
 
     /// <summary>
-    /// Gets the <see cref="FileResource"/> representing the source file.
-    /// </summary>
-    [AllowNull]
-    public FileResource SourceFile { get; private set; }
-
-    /// <summary>
-    /// Gets the <see cref="FileResource"/> representing the time zone file.
-    /// </summary>
-    [AllowNull]
-    public FileResource TimeZoneDataFile { get; private set; }
-
-    /// <summary>
-    /// Gets the <see cref="CalculationResource"/> representing the time zone calculation resource.
-    /// </summary>
-    [AllowNull]
-    public CalculationResource TimeZoneCalculation { get; private set; }
-
-    /// <summary>
     /// Gets or sets the number of nodes in the time zone builder tree.
     /// </summary>
     public int NodeCount { get; set; }
 
-    /// <inheritdoc/>
-    protected override async Task InitializeAsync()
+    /// <summary>
+    /// Initializes a new instance of the <see cref="Context"/> class with the specified parameters.
+    /// </summary>
+    /// <param name="client">The <see cref="HttpClient"/> used for HTTP requests.</param>
+    /// <param name="sourceRelease">The tag name of the latest timezone boundary builder release.</param>
+    /// <param name="includeOceans">If <see langword="true"/>, use the time zone data file without oceans; otherwise, include oceans.</param>
+    /// <param name="maxLevel">The maximum depth level for the time zone builder tree.</param>
+    /// <param name="minRingDistance">The minimum distance in meters between consecutive points in a ring.</param>
+    public Context(HttpClient client, string sourceRelease, bool includeOceans, int maxLevel, int minRingDistance)
     {
-        SourceRelease = await GetLatestReleaseAsync();
+        Client = client;
+        SourceRelease = sourceRelease;
+        MaxLevel = maxLevel;
+        MinRingDistance = minRingDistance;
+        SourceFileName = includeOceans ? "timezones-with-oceans.geojson" : "timezones.geojson";
 
         string baseAppDataPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "TZFinder");
         Directory.CreateDirectory(baseAppDataPath);
 
-        SourceFile = new FileResource(Path.Combine(baseAppDataPath, $"{SourceRelease}{SourceFileName}"));
-        TimeZoneDataFile = new FileResource(Path.Combine(baseAppDataPath, Lookup.DataFileName));
+        SourceFile = new FileResource(Path.Combine(baseAppDataPath, $"{SourceRelease}_{SourceFileName}"));
+        TimeZoneDataFile = new FileResource(Path.Combine(baseAppDataPath, $"{MaxLevel}_{MinRingDistance}_{(includeOceans ? "No" : "With")}_{Lookup.DataFileName}"));
         TimeZoneCalculation = new CalculationResource(TimeZoneDataFile);
-
-        async Task<string> GetLatestReleaseAsync()
-        {
-            JsonElement latestRelease = await Client.GetFromJsonAsync<JsonElement>($"https://api.github.com/repos/{SourceRepository}/releases/latest");
-
-            return latestRelease.GetProperty("tag_name").GetString()!;
-        }
-    }
-
-    private static HttpClient CreateClient()
-    {
-        HttpClient client = new();
-        client.DefaultRequestHeaders.Add("User-Agent", "TZFinder");
-
-        return client;
     }
 }

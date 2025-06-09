@@ -15,7 +15,7 @@ public partial class DownloadSource : ConversionStep
     public override string Name => "Download time zone file";
 
     /// <inheritdoc/>
-    protected override async IAsyncEnumerable<IResource> GetOutputsAsync(BuilderContext context)
+    protected override IEnumerable<IResource> GetOutputs(BuilderContext context)
     {
         yield return ((Context)context).SourceFile;
     }
@@ -28,7 +28,7 @@ public partial class DownloadSource : ConversionStep
         FileResource sourceFile = context.SourceFile;
 
         using HttpResponseMessage response = await context.Client.GetAsync(
-            $"https://github.com/{Context.SourceRepository}/releases/download/{context.SourceRelease}/{Context.SourceFileName}.zip",
+            $"https://github.com/{Context.SourceRepository}/releases/download/{context.SourceRelease}/{context.SourceFileName}.zip",
             HttpCompletionOption.ResponseHeadersRead);
 
         if (!response.IsSuccessStatusCode)

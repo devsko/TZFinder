@@ -16,13 +16,13 @@ public class CreateTree : ConversionStep
     protected override bool ShowProgressAsDataSize => false;
 
     /// <inheritdoc/>
-    protected override async IAsyncEnumerable<IResource> GetInputsAsync(BuilderContext context)
+    protected override IEnumerable<IResource> GetInputs(BuilderContext context)
     {
         yield return ((Context)context).SourceFile;
     }
 
     /// <inheritdoc/>
-    protected override async IAsyncEnumerable<IResource> GetOutputsAsync(BuilderContext context)
+    protected override IEnumerable<IResource> GetOutputs(BuilderContext context)
     {
         yield return ((Context)context).TimeZoneCalculation;
     }
@@ -36,7 +36,7 @@ public class CreateTree : ConversionStep
 
         context.SetTotal(this, timeZoneContext.Sources.Count);
 
-        (context.TimeZoneTree, context.NodeCount) = timeZoneContext.CreateTree(new ProgressSlim<int>(sources => context.SetProgress(this, sources)));
+        (context.TimeZoneTree, context.NodeCount) = timeZoneContext.CreateTree(context.MaxLevel, new ProgressSlim<int>(sources => context.SetProgress(this, sources)));
 
         return Task.CompletedTask;
     }

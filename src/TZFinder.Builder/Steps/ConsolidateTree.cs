@@ -19,13 +19,13 @@ public class ConsolidateTree : ConversionStep
     protected override bool ShowProgressAsDataSize => false;
 
     /// <inheritdoc/>
-    protected override async IAsyncEnumerable<IResource> GetInputsAsync(BuilderContext context)
+    protected override IEnumerable<IResource> GetInputs(BuilderContext context)
     {
         yield return ((Context)context).SourceFile;
     }
 
     /// <inheritdoc/>
-    protected override async IAsyncEnumerable<IResource> GetOutputsAsync(BuilderContext context)
+    protected override IEnumerable<IResource> GetOutputs(BuilderContext context)
     {
         yield return ((Context)context).TimeZoneCalculation;
     }

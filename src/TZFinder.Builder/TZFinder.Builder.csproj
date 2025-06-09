@@ -6,6 +6,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="ConsoleAppFramework" PrivateAssets="all" />
     <PackageReference Include="devsko.Spectre.Builder" />
     <PackageReference Include="GeoJson.aot" />
   </ItemGroup>

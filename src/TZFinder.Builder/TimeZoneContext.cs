@@ -65,9 +65,6 @@ public sealed partial class TimeZoneContext
         public readonly Position J_1 => Unsafe.Add(ref Unsafe.AsRef(in _start), 3);
     }
 
-    private const int MaxLevel = 25;
-    private const float ReducedPositionDistance = 500f;
-
     private static readonly Position Outside = GetOutside();
 
     private readonly Dictionary<TimeZoneBuilderNode, TimeZoneIndex> _multipleTimeZones = [];
@@ -100,6 +97,9 @@ public sealed partial class TimeZoneContext
     /// Asynchronously loads a <see cref="TimeZoneContext"/> from a stream containing GeoJSON data.
     /// </summary>
     /// <param name="stream">The input <see cref="Stream"/> containing GeoJSON time zone data.</param>
+    /// <param name="minRingDistance">
+    /// The minimum distance in meters between consecutive points in a ring. Points closer than this distance will be filtered out.
+    /// </param>
     /// <returns>
     /// A <see cref="Task{TimeZoneContext}"/> representing the asynchronous operation, with the loaded <see cref="TimeZoneContext"/> as the result.
     /// </returns>
@@ -109,7 +109,7 @@ public sealed partial class TimeZoneContext
     /// <exception cref="NotSupportedException">
     /// Thrown if the geometry type in the GeoJSON is not supported (i.e., not <see cref="Polygon"/> or <see cref="MultiPolygon"/>).
     /// </exception>
-    public static async Task<TimeZoneContext> LoadAsync(Stream stream)
+    public static async Task<TimeZoneContext> LoadAsync(Stream stream, int minRingDistance)
     {
         GeoSingle2D geo = new(JsonContext.Default, typeof(TimeZoneProperties));
         FeatureCollection<TimeZoneProperties> collection = await geo.DeserializeAsync<FeatureCollection<TimeZoneProperties>>(stream) ?? throw new InvalidOperationException();
@@ -121,7 +121,7 @@ public sealed partial class TimeZoneContext
             List<Position>[] excluded;
             if (feature.Geometry is Polygon polygon)
             {
-                included = [GetReducedPositionList(polygon.Coordinates[0])];
+                included = [GetReducedPositionList(polygon.Coordinates[0], minRingDistance)];
                 if (polygon.Coordinates.Length == 1)
                 {
                     excluded = [];
@@ -131,7 +131,7 @@ public sealed partial class TimeZoneContext
                     excluded = new List<Position>[polygon.Coordinates.Length - 1];
                     for (int i = 0; i < excluded.Length; i++)
                     {
-                        excluded[i] = GetReducedPositionList(polygon.Coordinates[i + 1]);
+                        excluded[i] = GetReducedPositionList(polygon.Coordinates[i + 1], minRingDistance);
                     }
                 }
             }
@@ -142,10 +142,10 @@ public sealed partial class TimeZoneContext
                 int excludesIndex = 0;
                 for (int i = 0; i < included.Length; i++)
                 {
-                    included[i] = GetReducedPositionList(multiPolygon.Coordinates[i][0]);
+                    included[i] = GetReducedPositionList(multiPolygon.Coordinates[i][0], minRingDistance);
                     for (int j = 1; j < multiPolygon.Coordinates[i].Length; j++)
                     {
-                        excluded[excludesIndex++] = GetReducedPositionList(multiPolygon.Coordinates[i][j]);
+                        excluded[excludesIndex++] = GetReducedPositionList(multiPolygon.Coordinates[i][j], minRingDistance);
                     }
                 }
             }
@@ -167,20 +167,23 @@ public sealed partial class TimeZoneContext
     /// Each time zone source is added to the tree, incrementing the node count.
     /// Optionally reports progress after each source is added.
     /// </summary>
+    /// <param name="maxLevel">
+    /// The maximum depth of the tree. Determines how many times the space is partitioned when adding time zone sources.
+    /// </param>
     /// <param name="progress">
     /// An optional <see cref="IProgress{T}"/> instance to report the number of sources processed.
     /// </param>
     /// <returns>
     /// A <see cref="TimeZoneBuilderTree"/> containing all loaded time zone sources.
     /// </returns>
-    public (TimeZoneBuilderTree Tree, int NodeCount) CreateTree(IProgress<int>? progress = null)
+    public (TimeZoneBuilderTree Tree, int NodeCount) CreateTree(int maxLevel, IProgress<int>? progress = null)
     {
         TimeZoneBuilderTree tree = new([.. Sources.Select(source => source.Id)]);
         int count = 0;
         int nodeCount = 1;
         foreach (TimeZoneSource source in Sources)
         {
-            nodeCount += Add(tree, source);
+            nodeCount += Add(tree, source, maxLevel);
             progress?.Report(++count);
         }
 
@@ -195,17 +198,20 @@ public sealed partial class TimeZoneContext
     /// </summary>
     /// <param name="tree">The <see cref="TimeZoneBuilderTree"/> to which the time zone source will be added.</param>
     /// <param name="source">The <see cref="TimeZoneSource"/> containing the time zone data to add.</param>
-    public int Add(TimeZoneBuilderTree tree, TimeZoneSource source)
+    /// <param name="maxLevel">
+    /// The maximum depth of the tree. Determines how many times the space is partitioned when adding time zone sources.
+    /// </param>
+    public int Add(TimeZoneBuilderTree tree, TimeZoneSource source, int maxLevel)
     {
         int nodeCount = 0;
         foreach (List<Position> ring in source.Included)
         {
-            Add(tree.Root, source.Index, CollectionsMarshal.AsSpan(ring), BBox.World, 0, _multipleTimeZones, ref nodeCount);
+            Add(tree.Root, source.Index, CollectionsMarshal.AsSpan(ring), BBox.World, 0, maxLevel, _multipleTimeZones, ref nodeCount);
         }
 
         return nodeCount;
 
-        static void Add(TimeZoneBuilderNode node, short index, ReadOnlySpan<Position> ring, BBox box, int level, Dictionary<TimeZoneBuilderNode, TimeZoneIndex> multiples, ref int nodeCount)
+        static void Add(TimeZoneBuilderNode node, short index, ReadOnlySpan<Position> ring, BBox box, int level, int maxLevel, Dictionary<TimeZoneBuilderNode, TimeZoneIndex> multiples, ref int nodeCount)
         {
             (bool subset, bool overlapping) = Check(ring, box);
 
@@ -215,7 +221,7 @@ public sealed partial class TimeZoneContext
             }
             else if (overlapping)
             {
-                if (level == MaxLevel)
+                if (level == maxLevel)
                 {
                     AddIndex(node, index, multiples);
                 }
@@ -227,8 +233,8 @@ public sealed partial class TimeZoneContext
                         nodeCount += 2;
                     }
 
-                    Add(Unsafe.As<TimeZoneBuilderNode>(node.Hi!), index, ring, hi, level, multiples, ref nodeCount);
-                    Add(Unsafe.As<TimeZoneBuilderNode>(node.Lo!), index, ring, lo, level, multiples, ref nodeCount);
+                    Add(Unsafe.As<TimeZoneBuilderNode>(node.Hi!), index, ring, hi, level, maxLevel, multiples, ref nodeCount);
+                    Add(Unsafe.As<TimeZoneBuilderNode>(node.Lo!), index, ring, lo, level, maxLevel, multiples, ref nodeCount);
                 }
             }
 
@@ -408,19 +414,22 @@ public sealed partial class TimeZoneContext
     /// </para>
     /// </summary>
     /// <param name="ring">The immutable array of <see cref="Position2D{T}"/> representing the closed ring (polygon).</param>
+    /// <param name="minRingDistance">
+    /// The minimum distance in meters between consecutive points in a ring. Points closer than this distance will be filtered out.
+    /// </param>
     /// <returns>
     /// A <see cref="List{Position}"/> containing the reduced and padded positions for efficient geometric processing.
     /// </returns>
-    private static List<Position> GetReducedPositionList(ImmutableArray<Position2D<float>> ring)
+    private static List<Position> GetReducedPositionList(ImmutableArray<Position2D<float>> ring, int minRingDistance)
     {
-        List<Position> list = [.. ReduceRingPositions(ring)];
+        List<Position> list = [.. ReduceRingPositions(ring, minRingDistance)];
         list.Insert(0, list[^1]);
         list.Add(list[1]);
         list.Add(list[2]);
 
         return list;
 
-        static IEnumerable<Position> ReduceRingPositions(ImmutableArray<Position2D<float>> ring)
+        static IEnumerable<Position> ReduceRingPositions(ImmutableArray<Position2D<float>> ring, int minRingDistance)
         {
             Position2D<float> lastPosition;
             yield return Unsafe.BitCast<Position2D<float>, Position>(lastPosition = ring[0]);
@@ -428,7 +437,7 @@ public sealed partial class TimeZoneContext
             {
                 Position2D<float> position = ring[i];
                 if ((Math.Abs(position.Latitude) > 70f && position != lastPosition) ||
-                    Distance(lastPosition, position) > ReducedPositionDistance)
+                    Distance(lastPosition, position) > minRingDistance)
                 {
                     yield return Unsafe.BitCast<Position2D<float>, Position>(position);
                     lastPosition = position;
