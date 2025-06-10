@@ -20,7 +20,7 @@
     <GenerateTestArtifacts>True</GenerateTestArtifacts>
     <AppxBundle>Never</AppxBundle>
     <HoursBetweenUpdateChecks>0</HoursBetweenUpdateChecks>
-    <PackageCertificateKeyFile>cycloid_TemporaryKey.pfx</PackageCertificateKeyFile>
+    <PackageCertificateKeyFile>TimeZoneVisualizer_TemporaryKey.pfx</PackageCertificateKeyFile>
   </PropertyGroup>
 
   <ItemGroup>
