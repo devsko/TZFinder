@@ -1,6 +1,7 @@
 ﻿// Copyright (c) devsko. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
+using System.Collections.Concurrent;
 using System.Collections.Immutable;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
@@ -66,20 +67,11 @@ public sealed partial class TimeZoneContext
         public readonly Position J_1 => Unsafe.Add(ref Unsafe.AsRef(in _start), 3);
     }
 
-    private struct Consolidation
-    {
-        public TimeZoneNode Node;
-        public TimeZoneIndex2 Index;
-        public BBox Box;
-        public int Level;
-    }
-
     private static readonly Position Outside = GetOutside();
 
     private readonly Dictionary<TimeZoneNode, TimeZoneIndex> _multipleTimeZones = [];
     private readonly Dictionary<string, short> _indices = [];
     private readonly Dictionary<short, TimeZoneSource> _sources = [];
-    private Channel<Consolidation>? _consolidations;
 
     /// <summary>
     /// Gets a collection of all <see cref="TimeZoneSource"/> objects loaded in this context.
@@ -185,6 +177,20 @@ public sealed partial class TimeZoneContext
         return context;
     }
 
+    private struct Creation
+    {
+        public TimeZoneNode Node;
+        public short Index;
+        public List<Position> Ring;
+        public BBox Box;
+        public int Level;
+    }
+
+    private sealed class CreationComparer : IComparer<Creation>
+    {
+        public int Compare(Creation x, Creation y) => x.Index - y.Index;
+    }
+
     /// <summary>
     /// Creates a new <see cref="TimeZoneBuilderTree"/> using the loaded time zone sources.
     /// Each time zone source is added to the tree, incrementing the node count.
@@ -200,77 +206,114 @@ public sealed partial class TimeZoneContext
     /// <returns>
     /// A <see cref="TimeZoneBuilderTree"/> containing all loaded time zone sources.
     /// </returns>
-    public TimeZoneBuilderTree CreateTree(int maxLevel, IProgress<int> progress, CancellationToken cancellationToken)
+    public async Task<TimeZoneBuilderTree> CreateTreeAsync(int maxLevel, IProgress<int> progress, CancellationToken cancellationToken)
     {
         TimeZoneBuilderTree tree = new([.. Sources.Select(source => source.Id)]);
-        int count = 0;
+        TimeZoneNode root = tree.Root;
+
+        Channel<Creation> creations = Channel.CreateUnboundedPrioritized<Creation>(new() { Comparer = new CreationComparer() });
+        ConcurrentDictionary<short, int> nodeCounts = new(
+            Environment.ProcessorCount,
+            Sources.Select(source => KeyValuePair.Create(source.Index, source.Included.Length)),
+            null);
+
         foreach (TimeZoneSource source in Sources)
         {
-            cancellationToken.ThrowIfCancellationRequested();
-
-            tree.NodeCount += Add(tree, source, maxLevel);
-            progress.Report(++count);
+            foreach (List<Position> ring in source.Included)
+            {
+                await creations.Writer.WriteAsync(new() { Node = root, Index = source.Index, Ring = ring, Box = BBox.World }, cancellationToken);
+            }
         }
+
+        Task[] threads = [.. Enumerable
+            .Range(0, Environment.ProcessorCount)
+            .Select(_ => Task.Run(ProcessCreationAsync))];
+
+        await Task.WhenAll(threads);
 
         return tree;
-    }
 
-    /// <summary>
-    /// Adds the included rings of a <see cref="TimeZoneSource"/> to the specified <see cref="TimeZoneBuilderTree"/>.
-    /// Each included ring is recursively inserted into the tree, partitioning the space as needed.
-    /// If a node's bounding box is fully contained or overlaps with the ring, the time zone index is added to the node.
-    /// Handles cases where a node may represent multiple time zones by updating an internal dictionary.
-    /// </summary>
-    /// <param name="tree">The <see cref="TimeZoneBuilderTree"/> to which the time zone source will be added.</param>
-    /// <param name="source">The <see cref="TimeZoneSource"/> containing the time zone data to add.</param>
-    /// <param name="maxLevel">
-    /// The maximum depth of the tree. Determines how many times the space is partitioned when adding time zone sources.
-    /// </param>
-    public int Add(TimeZoneBuilderTree tree, TimeZoneSource source, int maxLevel)
-    {
-        int nodeCount = 0;
-        foreach (List<Position> ring in source.Included)
+        async Task ProcessCreationAsync()
         {
-            Add(tree.Root, source.Index, CollectionsMarshal.AsSpan(ring), BBox.World, 0, maxLevel, _multipleTimeZones, ref nodeCount);
+            while (await creations.Reader.WaitToReadAsync(cancellationToken))
+            {
+                if (creations.Reader.TryRead(out Creation creation))
+                {
+                    await AddAsync(creation.Node, creation.Index, creation.Ring, creation.Box, creation.Level);
+                    if (IncrementNodeCount(creation.Index, -1) == 0)
+                    {
+                        progress.Report(1);
+                    }
+                    if (creations.Reader.Count == 0)
+                    {
+                        // Don't complete the channel, because other threads are
+                        // eventually about to add new creations.
+                        break;
+                    }
+                }
+            }
         }
 
-        return nodeCount;
-
-        static void Add(TimeZoneNode node, short index, ReadOnlySpan<Position> ring, BBox box, int level, int maxLevel, Dictionary<TimeZoneNode, TimeZoneIndex> multiples, ref int nodeCount)
+        async ValueTask AddAsync(TimeZoneNode node, short index, List<Position> ring, BBox box, int level)
         {
-            (bool subset, bool overlapping) = Check(ring, box);
+            (bool subset, bool overlapping) = Check(CollectionsMarshal.AsSpan(ring), box);
 
-            if (subset)
+            bool addToChildren = false;
+
+            lock (node)
             {
-                AddIndex(node, index, multiples);
-            }
-            else if (overlapping)
-            {
-                if (level == maxLevel)
+                if (subset)
                 {
-                    AddIndex(node, index, multiples);
+                    AddIndex(node, index, _multipleTimeZones);
                 }
-                else
+                else if (overlapping)
                 {
-                    (BBox hi, BBox lo) = box.Split(ref level);
-                    if (Unsafe.As<TimeZoneBuilderNode>(node).EnsureChildNodes())
+                    if (level == maxLevel)
                     {
-                        nodeCount += 2;
+                        AddIndex(node, index, _multipleTimeZones);
                     }
-
-                    Add(node.Hi!, index, ring, hi, level, maxLevel, multiples, ref nodeCount);
-                    Add(node.Lo!, index, ring, lo, level, maxLevel, multiples, ref nodeCount);
+                    else
+                    {
+                        addToChildren = true;
+                        if (Unsafe.As<TimeZoneBuilderNode>(node).EnsureChildNodes())
+                        {
+                            tree.NodeCount += 2;
+                        }
+                    }
                 }
+            }
+
+            if (addToChildren)
+            {
+                (BBox hi, BBox lo) = box.Split(ref level);
+                await creations.Writer.WriteAsync(new() { Node = node.Hi!, Index = index, Ring = ring, Box = hi, Level = level }, cancellationToken);
+                await creations.Writer.WriteAsync(new() { Node = node.Lo!, Index = index, Ring = ring, Box = lo, Level = level }, cancellationToken);
+                IncrementNodeCount(index, 2);
             }
 
             static void AddIndex(TimeZoneNode node, short index, Dictionary<TimeZoneNode, TimeZoneIndex> multiples)
             {
                 if (!Unsafe.As<TimeZoneBuilderNode>(node).IndexRef.Add(index))
                 {
-                    CollectionsMarshal.GetValueRefOrAddDefault(multiples, node, out _).Add(index);
+                    ref TimeZoneIndex indexRef = ref Unsafe.NullRef<TimeZoneIndex>();
+                    lock (multiples)
+                    {
+                        indexRef = ref CollectionsMarshal.GetValueRefOrAddDefault(multiples, node, out _);
+                    }
+                    indexRef.Add(index);
                 }
             }
         }
+
+        int IncrementNodeCount(short index, int amount) => nodeCounts.AddOrUpdate(index, 1, (_, count) => count + amount);
+    }
+
+    private struct Consolidation
+    {
+        public TimeZoneNode Node;
+        public TimeZoneIndex2 Index;
+        public BBox Box;
+        public int Level;
     }
 
     /// <summary>
@@ -287,8 +330,8 @@ public sealed partial class TimeZoneContext
     /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
     public async Task ConsolidateAsync(TimeZoneBuilderTree tree, IProgress<int> progress, CancellationToken cancellationToken)
     {
-        _consolidations = Channel.CreateUnbounded<Consolidation>();
-        await _consolidations.Writer.WriteAsync(new Consolidation { Node = tree.Root, Box = BBox.World }, cancellationToken);
+        Channel<Consolidation> consolidations = Channel.CreateUnbounded<Consolidation>();
+        await consolidations.Writer.WriteAsync(new Consolidation { Node = tree.Root, Box = BBox.World }, cancellationToken);
 
         int nodes = tree.NodeCount;
 
@@ -298,19 +341,17 @@ public sealed partial class TimeZoneContext
 
         await Task.WhenAll(threads);
 
-        _consolidations = null;
-
         async Task ProcessConsolidationAsync()
         {
             TimeZoneIndex[] indices = new TimeZoneIndex[25];
-            while (await _consolidations.Reader.WaitToReadAsync(cancellationToken))
+            while (await consolidations.Reader.WaitToReadAsync(cancellationToken))
             {
-                if (_consolidations.Reader.TryRead(out Consolidation consolidation))
+                if (consolidations.Reader.TryRead(out Consolidation consolidation))
                 {
                     await ConsolidateAsync(consolidation.Node, consolidation.Index, consolidation.Box, consolidation.Level, indices);
                     if (Interlocked.Decrement(ref nodes) == 0)
                     {
-                        _consolidations.Writer.Complete();
+                        consolidations.Writer.Complete();
                     }
                 }
             }
@@ -332,8 +373,8 @@ public sealed partial class TimeZoneContext
             {
                 Unsafe.As<TimeZoneBuilderNode>(node).IndexRef = default;
                 (BBox hi, BBox lo) = box.Split(ref level);
-                await _consolidations.Writer.WriteAsync(new() { Node = node.Hi, Index = index, Box = hi, Level = level }, cancellationToken);
-                await _consolidations.Writer.WriteAsync(new() { Node = node.Lo, Index = index, Box = lo, Level = level }, cancellationToken);
+                await consolidations.Writer.WriteAsync(new() { Node = node.Hi, Index = index, Box = hi, Level = level }, cancellationToken);
+                await consolidations.Writer.WriteAsync(new() { Node = node.Lo, Index = index, Box = lo, Level = level }, cancellationToken);
             }
             else if (index.Second != 0)
             {
