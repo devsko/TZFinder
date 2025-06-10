@@ -15,7 +15,7 @@
              Visible="false" />
   </ItemGroup>
 
-  <Target BeforeTargets="Build">
+  <Target Name="CheckTimeZoneDataFile" BeforeTargets="Build">
     <Warning Text="Unknown value TimeZoneDataFile '$(TimeZoneDataFile)'" Condition="'$(TimeZoneDataFile)' != 'Small' and '$(TimeZoneDataFile)' != 'Medium' and '$(TimeZoneDataFile)' != 'Large' and '$(TimeZoneDataFile)' != 'None'" />
   </Target>
   
