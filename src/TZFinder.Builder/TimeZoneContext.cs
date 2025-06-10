@@ -67,7 +67,7 @@ public sealed partial class TimeZoneContext
 
     private static readonly Position Outside = GetOutside();
 
-    private readonly Dictionary<TimeZoneBuilderNode, TimeZoneIndex> _multipleTimeZones = [];
+    private readonly Dictionary<TimeZoneNode, TimeZoneIndex> _multipleTimeZones = [];
     private readonly Dictionary<string, short> _indices = [];
     private readonly Dictionary<short, TimeZoneSource> _sources = [];
 
@@ -217,7 +217,7 @@ public sealed partial class TimeZoneContext
 
         return nodeCount;
 
-        static void Add(TimeZoneBuilderNode node, short index, ReadOnlySpan<Position> ring, BBox box, int level, int maxLevel, Dictionary<TimeZoneBuilderNode, TimeZoneIndex> multiples, ref int nodeCount)
+        static void Add(TimeZoneNode node, short index, ReadOnlySpan<Position> ring, BBox box, int level, int maxLevel, Dictionary<TimeZoneNode, TimeZoneIndex> multiples, ref int nodeCount)
         {
             (bool subset, bool overlapping) = Check(ring, box);
 
@@ -234,19 +234,19 @@ public sealed partial class TimeZoneContext
                 else
                 {
                     (BBox hi, BBox lo) = box.Split(ref level);
-                    if (node.EnsureChildNodes())
+                    if (Unsafe.As<TimeZoneBuilderNode>(node).EnsureChildNodes())
                     {
                         nodeCount += 2;
                     }
 
-                    Add(Unsafe.As<TimeZoneBuilderNode>(node.Hi!), index, ring, hi, level, maxLevel, multiples, ref nodeCount);
-                    Add(Unsafe.As<TimeZoneBuilderNode>(node.Lo!), index, ring, lo, level, maxLevel, multiples, ref nodeCount);
+                    Add(node.Hi!, index, ring, hi, level, maxLevel, multiples, ref nodeCount);
+                    Add(node.Lo!, index, ring, lo, level, maxLevel, multiples, ref nodeCount);
                 }
             }
 
-            static void AddIndex(TimeZoneBuilderNode node, short index, Dictionary<TimeZoneBuilderNode, TimeZoneIndex> multiples)
+            static void AddIndex(TimeZoneNode node, short index, Dictionary<TimeZoneNode, TimeZoneIndex> multiples)
             {
-                if (!node.IndexRef.Add(index))
+                if (!Unsafe.As<TimeZoneBuilderNode>(node).IndexRef.Add(index))
                 {
                     CollectionsMarshal.GetValueRefOrAddDefault(multiples, node, out _).Add(index);
                 }
@@ -268,12 +268,30 @@ public sealed partial class TimeZoneContext
     /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
     public void Consolidate(TimeZoneBuilderTree tree, IProgress<int> progress, CancellationToken cancellationToken)
     {
-        TimeZoneIndex[] indices = new TimeZoneIndex[25];
-        int count = 0;
+        BBox box = BBox.World;
+        int level = 0;
+        (BBox hi, BBox lo) = box.Split(ref level);
+        (BBox hihi, BBox hilo) = hi.Split(ref level);
+        level--;
+        (BBox lohi, BBox lolo) = lo.Split(ref level);
+        progress.Report(3);
 
-        Consolidate(tree.Root, default, BBox.World, 0);
+        Thread thread1 = new(() => Consolidate(Unsafe.As<TimeZoneBuilderNode>(tree.Root.Hi!.Hi!), default, hihi, level, new TimeZoneIndex[25]));
+        Thread thread2 = new(() => Consolidate(Unsafe.As<TimeZoneBuilderNode>(tree.Root.Hi!.Lo!), default, hilo, level, new TimeZoneIndex[25]));
+        Thread thread3 = new(() => Consolidate(Unsafe.As<TimeZoneBuilderNode>(tree.Root.Lo!.Hi!), default, lohi, level, new TimeZoneIndex[25]));
+        Thread thread4 = new(() => Consolidate(Unsafe.As<TimeZoneBuilderNode>(tree.Root.Lo!.Lo!), default, lolo, level, new TimeZoneIndex[25]));
 
-        void Consolidate(TimeZoneBuilderNode node, TimeZoneIndex2 index, BBox box, int level)
+        thread1.Start();
+        thread2.Start();
+        thread3.Start();
+        thread4.Start();
+
+        thread1.Join();
+        thread2.Join();
+        thread3.Join();
+        thread4.Join();
+
+        void Consolidate(TimeZoneNode node, TimeZoneIndex2 index, BBox box, int level, TimeZoneIndex[] indices)
         {
             cancellationToken.ThrowIfCancellationRequested();
 
@@ -289,10 +307,10 @@ public sealed partial class TimeZoneContext
 
             if (node.Hi is not null && node.Lo is not null)
             {
-                node.IndexRef = default;
+                Unsafe.As<TimeZoneBuilderNode>(node).IndexRef = default;
                 (BBox hi, BBox lo) = box.Split(ref level);
-                Consolidate(Unsafe.As<TimeZoneBuilderNode>(node.Hi), index, hi, level);
-                Consolidate(Unsafe.As<TimeZoneBuilderNode>(node.Lo), index, lo, level);
+                Consolidate(node.Hi, index, hi, level, indices);
+                Consolidate(node.Lo, index, lo, level, indices);
             }
             else if (index.Second != 0)
             {
@@ -301,21 +319,21 @@ public sealed partial class TimeZoneContext
                 {
                     GetArea(indices, sources[nodeIndex], box);
                 }
-                node.IndexRef = GetFinalIndex(indices);
+                Unsafe.As<TimeZoneBuilderNode>(node).IndexRef = GetFinalIndex(indices);
             }
             else if (index.First != 0)
             {
-                node.IndexRef = new TimeZoneIndex(index.First);
+                Unsafe.As<TimeZoneBuilderNode>(node).IndexRef = new TimeZoneIndex(index.First);
             }
 
-            progress.Report(++count);
+            progress.Report(1);
         }
 
         // Retrieves all time zone indices associated with a given TimeZoneBuilderNode,
         // including both the primary and secondary indices stored directly in the node, as well as any
         // additional indices present in the internal dictionary for nodes
         // representing multiple time zones.
-        static IEnumerable<short> GetMultipleTimeZones(TimeZoneBuilderNode node, Dictionary<TimeZoneBuilderNode, TimeZoneIndex> multiples)
+        static IEnumerable<short> GetMultipleTimeZones(TimeZoneNode node, Dictionary<TimeZoneNode, TimeZoneIndex> multiples)
         {
             if (node.Index.First == 0) yield break;
             yield return node.Index.First;
@@ -357,10 +375,10 @@ public sealed partial class TimeZoneContext
             int i = 0;
             for (int x = 0; x < 5; x++)
             {
-                float longitude = Lerp(box.SouthWest.Longitude, box.NorthEast.Longitude, (float)x / 4);
+                float longitude = Lerp(box.SouthWest.Longitude, box.NorthEast.Longitude, .1f + (float)x / 5);
                 for (int y = 0; y < 5; y++)
                 {
-                    float latitude = Lerp(box.SouthWest.Latitude, box.NorthEast.Latitude, (float)y / 4);
+                    float latitude = Lerp(box.SouthWest.Latitude, box.NorthEast.Latitude, .1f + (float)y / 5);
                     if (IsInside(new Position(longitude, latitude), source))
                     {
                         indices[i].Add(source.Index);

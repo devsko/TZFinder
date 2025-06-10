@@ -38,7 +38,7 @@ public class ConsolidateTree : ConversionStep<Context>
 
         context.SetTotal(this, context.NodeCount);
 
-        timeZoneContext.Consolidate(timeZoneTree, new ProgressSlim<int>(nodes => context.SetProgress(this, nodes)), cancellationToken);
+        timeZoneContext.Consolidate(timeZoneTree, new ProgressSlim<int>(nodes => context.IncrementProgress(this, nodes)), cancellationToken);
 
         return Task.CompletedTask;
     }
