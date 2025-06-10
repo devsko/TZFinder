@@ -1,7 +1,6 @@
 ﻿// Copyright (c) devsko. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
-using System.Runtime.CompilerServices;
 using System.Text;
 
 namespace TZFinder.Builder;
@@ -16,9 +15,18 @@ namespace TZFinder.Builder;
 public sealed class TimeZoneBuilderTree(string[] timeZoneIds) : TimeZoneTree(timeZoneIds, new TimeZoneBuilderNode(default))
 {
     /// <summary>
+    /// Gets or sets the number of nodes in the <see cref="TimeZoneBuilderTree"/>.
+    /// </summary>
+    public new int NodeCount
+    {
+        get => base.NodeCount;
+        internal set => base.NodeCount = value;
+    }
+
+    /// <summary>
     /// Gets the mutable root node of the builder tree as a <see cref="TimeZoneBuilderNode"/>.
     /// </summary>
-    internal new TimeZoneBuilderNode Root => Unsafe.As<TimeZoneBuilderNode>(base.Root);
+    internal new TimeZoneNode Root => base.Root;
 
     /// <summary>
     /// Serializes the <see cref="TimeZoneBuilderTree"/> to the given <see cref="Stream"/>.
@@ -61,5 +69,4 @@ public sealed class TimeZoneBuilderTree(string[] timeZoneIds) : TimeZoneTree(tim
             progress?.Report(++written);
         }
     }
-
 }

@@ -68,11 +68,6 @@ public class Context : BuilderContext<Context>
     /// </summary>
     public TimeZoneBuilderTree? TimeZoneTree { get; set; }
 
-    /// <summary>
-    /// Gets or sets the number of nodes in the time zone builder tree.
-    /// </summary>
-    public int NodeCount { get; set; }
-
     private Context(CancellationToken cancellationToken) : base(cancellationToken)
     { }
 
@@ -171,6 +166,10 @@ public class Context : BuilderContext<Context>
         {
             Console.ForegroundColor = ConsoleColor.Red;
             Console.WriteLine(ex.Message);
+        }
+        finally
+        {
+            Console.ResetColor();
         }
     }
 }

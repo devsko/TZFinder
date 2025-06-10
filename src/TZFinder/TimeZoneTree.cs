@@ -15,6 +15,11 @@ public class TimeZoneTree
     private readonly string[] _timeZoneIds;
 
     /// <summary>
+    /// Gets or sets the number of nodes in the time zone tree.
+    /// </summary>
+    public int NodeCount { get; protected set; }
+
+    /// <summary>
     /// Initializes a new instance of the <see cref="TimeZoneTree"/> class with the specified time zone identifierss and root node.
     /// </summary>
     /// <param name="timeZoneIds">An array of time zone identifiers.</param>
@@ -23,6 +28,7 @@ public class TimeZoneTree
     {
         _timeZoneIds = timeZoneIds;
         _root = root;
+        NodeCount = 1;
     }
 
     /// <summary>

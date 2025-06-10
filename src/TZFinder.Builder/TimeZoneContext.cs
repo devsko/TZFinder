@@ -5,6 +5,7 @@ using System.Collections.Immutable;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Text.Json.Serialization;
+using System.Threading.Channels;
 using GeoJson;
 
 using static GeoJson.Geo<GeoJson.Position2D<float>, float>;
@@ -65,11 +66,20 @@ public sealed partial class TimeZoneContext
         public readonly Position J_1 => Unsafe.Add(ref Unsafe.AsRef(in _start), 3);
     }
 
+    private struct Consolidation
+    {
+        public TimeZoneNode Node;
+        public TimeZoneIndex2 Index;
+        public BBox Box;
+        public int Level;
+    }
+
     private static readonly Position Outside = GetOutside();
 
     private readonly Dictionary<TimeZoneNode, TimeZoneIndex> _multipleTimeZones = [];
     private readonly Dictionary<string, short> _indices = [];
     private readonly Dictionary<short, TimeZoneSource> _sources = [];
+    private Channel<Consolidation>? _consolidations;
 
     /// <summary>
     /// Gets a collection of all <see cref="TimeZoneSource"/> objects loaded in this context.
@@ -190,20 +200,19 @@ public sealed partial class TimeZoneContext
     /// <returns>
     /// A <see cref="TimeZoneBuilderTree"/> containing all loaded time zone sources.
     /// </returns>
-    public (TimeZoneBuilderTree Tree, int NodeCount) CreateTree(int maxLevel, IProgress<int> progress, CancellationToken cancellationToken)
+    public TimeZoneBuilderTree CreateTree(int maxLevel, IProgress<int> progress, CancellationToken cancellationToken)
     {
         TimeZoneBuilderTree tree = new([.. Sources.Select(source => source.Id)]);
         int count = 0;
-        int nodeCount = 1;
         foreach (TimeZoneSource source in Sources)
         {
             cancellationToken.ThrowIfCancellationRequested();
 
-            nodeCount += Add(tree, source, maxLevel);
+            tree.NodeCount += Add(tree, source, maxLevel);
             progress.Report(++count);
         }
 
-        return (tree, nodeCount);
+        return tree;
     }
 
     /// <summary>
@@ -276,35 +285,39 @@ public sealed partial class TimeZoneContext
     /// An optional <see cref="IProgress{T}"/> instance to report the number of nodes processed.
     /// </param>
     /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
-    public void Consolidate(TimeZoneBuilderTree tree, IProgress<int> progress, CancellationToken cancellationToken)
+    public async Task ConsolidateAsync(TimeZoneBuilderTree tree, IProgress<int> progress, CancellationToken cancellationToken)
     {
-        BBox box = BBox.World;
-        int level = 0;
-        (BBox hi, BBox lo) = box.Split(ref level);
-        (BBox hihi, BBox hilo) = hi.Split(ref level);
-        level--;
-        (BBox lohi, BBox lolo) = lo.Split(ref level);
-        progress.Report(3);
+        _consolidations = Channel.CreateUnbounded<Consolidation>();
+        await _consolidations.Writer.WriteAsync(new Consolidation { Node = tree.Root, Box = BBox.World }, cancellationToken);
 
-        Thread thread1 = new(() => Consolidate(Unsafe.As<TimeZoneBuilderNode>(tree.Root.Hi!.Hi!), default, hihi, level, new TimeZoneIndex[25]));
-        Thread thread2 = new(() => Consolidate(Unsafe.As<TimeZoneBuilderNode>(tree.Root.Hi!.Lo!), default, hilo, level, new TimeZoneIndex[25]));
-        Thread thread3 = new(() => Consolidate(Unsafe.As<TimeZoneBuilderNode>(tree.Root.Lo!.Hi!), default, lohi, level, new TimeZoneIndex[25]));
-        Thread thread4 = new(() => Consolidate(Unsafe.As<TimeZoneBuilderNode>(tree.Root.Lo!.Lo!), default, lolo, level, new TimeZoneIndex[25]));
+        int nodes = tree.NodeCount;
 
-        thread1.Start();
-        thread2.Start();
-        thread3.Start();
-        thread4.Start();
+        Task[] threads = [.. Enumerable
+            .Range(0, Environment.ProcessorCount)
+            .Select(_ => Task.Run(ProcessConsolidationAsync))];
 
-        thread1.Join();
-        thread2.Join();
-        thread3.Join();
-        thread4.Join();
+        await Task.WhenAll(threads);
 
-        void Consolidate(TimeZoneNode node, TimeZoneIndex2 index, BBox box, int level, TimeZoneIndex[] indices)
+        _consolidations = null;
+
+        async Task ProcessConsolidationAsync()
         {
-            cancellationToken.ThrowIfCancellationRequested();
+            TimeZoneIndex[] indices = new TimeZoneIndex[25];
+            while (await _consolidations.Reader.WaitToReadAsync(cancellationToken))
+            {
+                if (_consolidations.Reader.TryRead(out Consolidation consolidation))
+                {
+                    await ConsolidateAsync(consolidation.Node, consolidation.Index, consolidation.Box, consolidation.Level, indices);
+                    if (Interlocked.Decrement(ref nodes) == 0)
+                    {
+                        _consolidations.Writer.Complete();
+                    }
+                }
+            }
+        }
 
+        async ValueTask ConsolidateAsync(TimeZoneNode node, TimeZoneIndex2 index, BBox box, int level, TimeZoneIndex[] indices)
+        {
             Dictionary<short, TimeZoneSource> sources = _sources;
 
             foreach (short nodeIndex in GetMultipleTimeZones(node, _multipleTimeZones))
@@ -319,8 +332,8 @@ public sealed partial class TimeZoneContext
             {
                 Unsafe.As<TimeZoneBuilderNode>(node).IndexRef = default;
                 (BBox hi, BBox lo) = box.Split(ref level);
-                Consolidate(node.Hi, index, hi, level, indices);
-                Consolidate(node.Lo, index, lo, level, indices);
+                await _consolidations.Writer.WriteAsync(new() { Node = node.Hi, Index = index, Box = hi, Level = level }, cancellationToken);
+                await _consolidations.Writer.WriteAsync(new() { Node = node.Lo, Index = index, Box = lo, Level = level }, cancellationToken);
             }
             else if (index.Second != 0)
             {

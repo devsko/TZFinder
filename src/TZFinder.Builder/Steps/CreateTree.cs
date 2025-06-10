@@ -34,8 +34,7 @@ public class CreateTree : ConversionStep<Context>
 
         context.SetTotal(this, timeZoneContext.Sources.Count);
 
-        (context.TimeZoneTree, context.NodeCount) = timeZoneContext.CreateTree(context.MaxLevel, new ProgressSlim<int>(sources => context.SetProgress(this, sources)), cancellationToken);
-        timeZoneContext.ClearSources();
+        context.TimeZoneTree = timeZoneContext.CreateTree(context.MaxLevel, new ProgressSlim<int>(sources => context.SetProgress(this, sources)), cancellationToken);
 
         return Task.CompletedTask;
     }
