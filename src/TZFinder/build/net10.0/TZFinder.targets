@@ -2,10 +2,10 @@
 <Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
 
   <PropertyGroup>
-    <TimeZoneDataFile Condition="'$(TimeZoneDataFile)' == ''">Medium</TimeZoneDataFile>
-    <_TimeZoneDataFile Condition="'$(TimeZoneDataFile)' == 'Small'">20_5000_NoEtc_TimeZoneData.bin</_TimeZoneDataFile>
-    <_TimeZoneDataFile Condition="'$(TimeZoneDataFile)' == 'Medium'">25_600_NoEtc_TimeZoneData.bin</_TimeZoneDataFile>
-    <_TimeZoneDataFile Condition="'$(TimeZoneDataFile)' == 'Large'">30_152_NoEtc_TimeZoneData.bin</_TimeZoneDataFile>
+    <TimeZoneData Condition="'$(TimeZoneData)' == ''">Medium</TimeZoneData>
+    <_TimeZoneDataFile Condition="'$(TimeZoneData)' == 'Small'">20_5000_NoEtc_TimeZoneData.bin</_TimeZoneDataFile>
+    <_TimeZoneDataFile Condition="'$(TimeZoneData)' == 'Medium'">25_600_NoEtc_TimeZoneData.bin</_TimeZoneDataFile>
+    <_TimeZoneDataFile Condition="'$(TimeZoneData)' == 'Large'">30_152_NoEtc_TimeZoneData.bin</_TimeZoneDataFile>
   </PropertyGroup>
 
   <ItemGroup Condition="'$(_TimeZoneDataFile)' != ''">
@@ -15,8 +15,9 @@
              Visible="false" />
   </ItemGroup>
 
-  <Target Name="CheckTimeZoneDataFile" BeforeTargets="Build">
-    <Warning Text="Unknown value TimeZoneDataFile '$(TimeZoneDataFile)'" Condition="'$(TimeZoneDataFile)' != 'Small' and '$(TimeZoneDataFile)' != 'Medium' and '$(TimeZoneDataFile)' != 'Large' and '$(TimeZoneDataFile)' != 'None'" />
+  <Target Name="CheckTimeZoneData" BeforeTargets="Build">
+    <Warning Text="Unknown TimeZoneData '$(TimeZoneData)'" 
+             Condition="'$(TimeZoneData)' != 'Small' and '$(TimeZoneData)' != 'Medium' and '$(TimeZoneData)' != 'Large' and '$(TimeZoneData)' != 'None'" />
   </Target>
   
 </Project>
