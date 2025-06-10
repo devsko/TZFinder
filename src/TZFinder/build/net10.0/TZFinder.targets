@@ -14,5 +14,9 @@
              CopyToOutputDirectory="PreserveNewest"
              Visible="false" />
   </ItemGroup>
+
+  <Target BeforeTarget="Build">
+    <Warning Text="Unknown value TimeZoneDataFile '$(TimeZoneDataFile)'" Condition="'$(TimeZoneDataFile)' != 'Small' and '$(TimeZoneDataFile)' != 'Medium' and '$(TimeZoneDataFile)' != 'Large' and '$(TimeZoneDataFile)' != 'None'" />
+  </Target>
   
 </Project>

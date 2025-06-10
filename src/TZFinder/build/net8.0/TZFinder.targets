@@ -3,10 +3,20 @@
 
   <PropertyGroup>
     <TimeZoneDataFile Condition="'$(TimeZoneDataFile)' == ''">Medium</TimeZoneDataFile>
+    <_TimeZoneDataFile Condition="'$(TimeZoneDataFile)' == 'Small'">20_5000_NoEtc_TimeZoneData.bin</_TimeZoneDataFile>
+    <_TimeZoneDataFile Condition="'$(TimeZoneDataFile)' == 'Medium'">25_600_NoEtc_TimeZoneData.bin</_TimeZoneDataFile>
+    <_TimeZoneDataFile Condition="'$(TimeZoneDataFile)' == 'Large'">30_152_NoEtc_TimeZoneData.bin</_TimeZoneDataFile>
   </PropertyGroup>
 
-  <ItemGroup Condition="'$(TimeZoneDataFile)' != 'None'">
-    <Content 
+  <ItemGroup Condition="'$(_TimeZoneDataFile)' != ''">
+    <Content Include="$(MSBuildThisFileDirectory)..\..\data\$(_TimeZoneDataFile)"
+             Link="TimeZoneData.bin"
+             CopyToOutputDirectory="PreserveNewest"
+             Visible="false" />
   </ItemGroup>
-  
+
+  <Target BeforeTarget="Build">
+    <Warning Text="Unknown value TimeZoneDataFile '$(TimeZoneDataFile)'" Condition="'$(TimeZoneDataFile)' != 'Small' and '$(TimeZoneDataFile)' != 'Medium' and '$(TimeZoneDataFile)' != 'Large' and '$(TimeZoneDataFile)' != 'None'" />
+  </Target>
+
 </Project>
