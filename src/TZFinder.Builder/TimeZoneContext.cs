@@ -90,6 +90,16 @@ public sealed partial class TimeZoneContext
     /// <returns>The <see cref="TimeZoneSource"/> for the given time zone identifier.</returns>
     public TimeZoneSource GetSource(string id) => _sources[_indices[id]];
 
+    /// <summary>
+    /// Removes all loaded <see cref="TimeZoneSource"/> objects from the current context.
+    /// This method clears the internal dictionary that maps time zone indices to their corresponding sources.
+    /// After calling this method, the <see cref="Sources"/> collection will be empty.
+    /// </summary>
+    public void ClearSources()
+    {
+        _sources.Clear();
+    }
+
     private TimeZoneContext()
     { }
 
