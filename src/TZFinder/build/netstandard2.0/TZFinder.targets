@@ -23,7 +23,7 @@
   </PropertyGroup>
 
   <Target Name="CheckTimeZoneData">
-    <Warning Text="Unknown TimeZoneData '$(TimeZoneData)'"
+    <Error Text="Unknown TimeZoneData '$(TimeZoneData)'"
              Condition="'$(TimeZoneData)' != 'Small' and '$(TimeZoneData)' != 'Medium' and '$(TimeZoneData)' != 'Large' and '$(TimeZoneData)' != 'None'" />
   </Target>
 
