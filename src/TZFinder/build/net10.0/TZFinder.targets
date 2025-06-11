@@ -11,7 +11,7 @@
   <ItemGroup Condition="'$(_TimeZoneDataFile)' != ''">
     <Content Include="$(MSBuildThisFileDirectory)..\..\data\$(_TimeZoneDataFile)"
              Link="TimeZoneData.bin"
-             CopyToOutputDirectory="PreserveNewest"
+             CopyToOutputDirectory="IfDifferent"
              Visible="false" />
   </ItemGroup>
 
