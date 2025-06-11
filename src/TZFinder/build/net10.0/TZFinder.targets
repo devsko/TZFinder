@@ -8,6 +8,10 @@
     <_TimeZoneDataFile Condition="'$(TimeZoneData)' == 'Large'">30_152_NoEtc_TimeZoneData.bin</_TimeZoneDataFile>
   </PropertyGroup>
 
+  <!-- 
+  Only add the data file if used in an app. UWP Native cannot handle duplicates 
+  from transitive packages.
+  -->
   <ItemGroup Condition="'$(_TimeZoneDataFile)' != '' and (
                         '$(OutputType)' == 'Exe' or 
                         '$(OutputType)' == 'WinExe' or 

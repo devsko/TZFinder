@@ -374,7 +374,7 @@ public static class TZLookup
 #if NET9_0_OR_GREATER
             Stream data = zip;
 #else
-            Stream data = new BufferedStream(stream);
+            Stream data = new BufferedStream(zip);
 #endif
 
             return TimeZoneTree.Deserialize(data);
