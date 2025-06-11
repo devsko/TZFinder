@@ -2,10 +2,14 @@
 <Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
 
   <PropertyGroup>
+    
     <TimeZoneData Condition="'$(TimeZoneData)' == ''">Medium</TimeZoneData>
+    <TimeZoneDataDirectory Condition="'$(TimeZoneDataDirectory)' != '' and !HasTrailingSlash('$(OutputPath)')">$(TimeZoneDataDirectory)\</TimeZoneDataDirectory>
+    
     <_TimeZoneDataFile Condition="'$(TimeZoneData)' == 'Small'">20_5000_NoEtc_TimeZoneData.bin</_TimeZoneDataFile>
     <_TimeZoneDataFile Condition="'$(TimeZoneData)' == 'Medium'">25_600_NoEtc_TimeZoneData.bin</_TimeZoneDataFile>
     <_TimeZoneDataFile Condition="'$(TimeZoneData)' == 'Large'">30_152_NoEtc_TimeZoneData.bin</_TimeZoneDataFile>
+
   </PropertyGroup>
 
   <!-- 
@@ -17,7 +21,7 @@
                         '$(OutputType)' == 'WinExe' or 
                         '$(OutputType)' == 'AppContainerExe')">
     <Content Include="$(MSBuildThisFileDirectory)..\..\data\$(_TimeZoneDataFile)"
-             Link="TimeZoneData.bin"
+             Link="$(TimeZoneDataDirectory)TimeZoneData.bin"
              CopyToOutputDirectory="Always"
              SkipUnchangedFilesOnCopyAlways="true"
              Visible="false" />
