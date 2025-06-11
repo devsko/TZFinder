@@ -32,7 +32,8 @@
     <EmbeddedResource Condition="'$(TimeZoneEmbed)' == 'true'"
                       Include="$(MSBuildThisFileDirectory)..\..\data\$(_TimeZoneDataFile)"
                       Link="$(TimeZoneDirectory)TimeZoneData.bin"
-                      ManifestResourceName="TimeZoneData.bin" />
+                      ManifestResourceName="TimeZoneData.bin"
+                      LogicalName="TimeZoneData.bin"/>
                       
   </ItemGroup>
 
