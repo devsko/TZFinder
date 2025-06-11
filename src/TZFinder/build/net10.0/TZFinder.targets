@@ -4,7 +4,7 @@
   <PropertyGroup>
     
     <TimeZoneData Condition="'$(TimeZoneData)' == ''">Medium</TimeZoneData>
-    <TimeZoneDataDirectory Condition="'$(TimeZoneDataDirectory)' != '' and !HasTrailingSlash('$(OutputPath)')">$(TimeZoneDataDirectory)\</TimeZoneDataDirectory>
+    <TimeZoneDirectory Condition="'$(TimeZoneDirectory)' != '' and !HasTrailingSlash('$(TimeZoneDirectory)')">$(TimeZoneDirectory)\</TimeZoneDirectory>
     
     <_TimeZoneDataFile Condition="'$(TimeZoneData)' == 'Small'">20_5000_NoEtc_TimeZoneData.bin</_TimeZoneDataFile>
     <_TimeZoneDataFile Condition="'$(TimeZoneData)' == 'Medium'">25_600_NoEtc_TimeZoneData.bin</_TimeZoneDataFile>
@@ -21,7 +21,7 @@
                         '$(OutputType)' == 'WinExe' or 
                         '$(OutputType)' == 'AppContainerExe')">
     <Content Include="$(MSBuildThisFileDirectory)..\..\data\$(_TimeZoneDataFile)"
-             Link="$(TimeZoneDataDirectory)TimeZoneData.bin"
+             Link="$(TimeZoneDirectory)TimeZoneData.bin"
              CopyToOutputDirectory="Always"
              SkipUnchangedFilesOnCopyAlways="true"
              Visible="false" />
