@@ -334,8 +334,6 @@ public static class Lookup
             dataPath = Path.Combine(Path.GetDirectoryName(executablePath)!, DataFileName);
         }
 
-        Console.WriteLine($"AppContext.BaseDirectory: {AppContext.BaseDirectory}");
-
         return dataPath is null || !File.Exists(dataPath)
             ? throw new InvalidOperationException($"Could not find time zone data file{(executablePath is not null ? $" at '{executablePath}'" : "")}. Consider setting {nameof(TimeZoneDataPath)}.")
             : dataPath;
