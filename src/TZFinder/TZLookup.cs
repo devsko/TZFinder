@@ -350,7 +350,7 @@ public static class TZLookup
         {
             try
             {
-                stream = File.OpenRead(TimeZoneDataPath);
+                stream = new FileStream(TimeZoneDataPath, FileMode.Open, FileAccess.Read, FileShare.Read, 1024 * 1024, false);
             }
             catch (Exception ex)
             {
