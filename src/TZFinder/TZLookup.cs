@@ -54,6 +54,7 @@ public static class TZLookup
     /// Gets or sets the stream containing time zone data.
     /// Must be set before the time zone tree is loaded.
     /// </summary>
+    /// <remarks>The stream gets disposed after reading the file.</remarks>
     /// <exception cref="InvalidOperationException">Thrown if the time zone tree has already been loaded.</exception>
     /// <exception cref="ArgumentNullException">Thrown if the value is null.</exception>
     /// <exception cref="ArgumentException">Thrown if the stream is not readable.</exception>
@@ -350,7 +351,11 @@ public static class TZLookup
         {
             try
             {
-                stream = new FileStream(TimeZoneDataPath, FileMode.Open, FileAccess.Read, FileShare.Read, 1024 * 1024, false);
+#if NET9_0_OR_GREATER
+                stream = File.OpenRead(TimeZoneDataPath);
+#else
+                stream = new FileStream(TimeZoneDataPath, FileMode.Open, FileAccess.Read, FileShare.Read, 1, false);
+#endif
             }
             catch (Exception ex)
             {
@@ -369,6 +374,9 @@ public static class TZLookup
 
         static TimeZoneTree LoadFromStream(Stream stream)
         {
+#if !NET9_0_OR_GREATER
+            stream = new BufferedStream(stream, 1024 * 1024);
+#endif
             using GZipStream zip = new(stream, CompressionMode.Decompress, leaveOpen: false);
             return TimeZoneTree.Deserialize(zip);
         }
