@@ -8,7 +8,10 @@
     <_TimeZoneDataFile Condition="'$(TimeZoneData)' == 'Large'">30_152_NoEtc_TimeZoneData.bin</_TimeZoneDataFile>
   </PropertyGroup>
 
-  <ItemGroup Condition="'$(_TimeZoneDataFile)' != ''">
+  <ItemGroup Condition="'$(_TimeZoneDataFile)' != '' and (
+                        '$(OutputType)' == 'Exe' or 
+                        '$(OutputType)' == 'WinExe' or 
+                        '$(OutputType)' == 'AppContainerExe')">
     <Content Include="$(MSBuildThisFileDirectory)..\..\data\$(_TimeZoneDataFile)"
              Link="TimeZoneData.bin"
              CopyToOutputDirectory="Always"
