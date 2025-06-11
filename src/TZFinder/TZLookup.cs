@@ -351,7 +351,8 @@ public static class TZLookup
         {
             try
             {
-                stream = File.OpenRead(TimeZoneDataPath);
+                // Turn off buffering
+                stream = new FileStream(TimeZoneDataPath, FileMode.Open, FileAccess.Read, FileShare.Read, 1, useAsync: false);
             }
             catch (Exception ex)
             {
@@ -371,13 +372,8 @@ public static class TZLookup
         static TimeZoneTree LoadFromStream(Stream stream)
         {
             using GZipStream zip = new(stream, CompressionMode.Decompress, leaveOpen: false);
-#if NET9_0_OR_GREATER
-            Stream data = zip;
-#else
-            Stream data = new BufferedStream(zip);
-#endif
 
-            return TimeZoneTree.Deserialize(data);
+            return TimeZoneTree.Deserialize(new BufferedStream(zip));
         }
     }
 }
