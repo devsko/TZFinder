@@ -12,8 +12,6 @@
     <Content Include="$(MSBuildThisFileDirectory)..\..\data\$(_TimeZoneDataFile)"
              Link="TimeZoneData.bin"
              CopyToOutputDirectory="IfDifferent"
-             CopyToPublishDirectory="IfDifferent"
-             ExcludeFromSingeFile="true"
              Visible="false" />
   </ItemGroup>
 
