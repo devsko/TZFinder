@@ -14,6 +14,31 @@ public struct TimeZoneIndex2 : IEnumerable<short>
     private ulong _value;
 
     /// <summary>
+    /// Gets a value indicating whether the index is empty.
+    /// </summary>
+    public readonly bool IsEmpty => _value == 0;
+
+    /// <summary>
+    /// Gets the first time zone index.
+    /// </summary>
+    public readonly short First => Unsafe.Add(ref Unsafe.As<ulong, short>(ref Unsafe.AsRef(in _value)), 0);
+
+    /// <summary>
+    /// Gets the second time zone index.
+    /// </summary>
+    public readonly short Second => Unsafe.Add(ref Unsafe.As<ulong, short>(ref Unsafe.AsRef(in _value)), 1);
+
+    /// <summary>
+    /// Gets the third time zone index.
+    /// </summary>
+    public readonly short Third => Unsafe.Add(ref Unsafe.As<ulong, short>(ref Unsafe.AsRef(in _value)), 2);
+
+    /// <summary>
+    /// Gets the fourth time zone index.
+    /// </summary>
+    public readonly short Fourth => Unsafe.Add(ref Unsafe.As<ulong, short>(ref Unsafe.AsRef(in _value)), 3);
+
+    /// <summary>
     /// Adds a time zone index to the structure.
     /// </summary>
     /// <param name="index">The time zone index to add.</param>
@@ -57,29 +82,4 @@ public struct TimeZoneIndex2 : IEnumerable<short>
     /// </summary>
     /// <returns>An enumerator for the time zone indices.</returns>
     readonly IEnumerator IEnumerable.GetEnumerator() => ((IEnumerable<short>)this).GetEnumerator();
-
-    /// <summary>
-    /// Gets a value indicating whether the index is empty.
-    /// </summary>
-    public readonly bool IsEmpty => _value == 0;
-
-    /// <summary>
-    /// Gets the first time zone index.
-    /// </summary>
-    public readonly short First => Unsafe.Add(ref Unsafe.As<ulong, short>(ref Unsafe.AsRef(in _value)), 0);
-
-    /// <summary>
-    /// Gets the second time zone index.
-    /// </summary>
-    public readonly short Second => Unsafe.Add(ref Unsafe.As<ulong, short>(ref Unsafe.AsRef(in _value)), 1);
-
-    /// <summary>
-    /// Gets the third time zone index.
-    /// </summary>
-    public readonly short Third => Unsafe.Add(ref Unsafe.As<ulong, short>(ref Unsafe.AsRef(in _value)), 2);
-
-    /// <summary>
-    /// Gets the fourth time zone index.
-    /// </summary>
-    public readonly short Fourth => Unsafe.Add(ref Unsafe.As<ulong, short>(ref Unsafe.AsRef(in _value)), 3);
 }
