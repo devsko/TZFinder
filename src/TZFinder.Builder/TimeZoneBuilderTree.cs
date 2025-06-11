@@ -15,18 +15,15 @@ namespace TZFinder.Builder;
 public sealed class TimeZoneBuilderTree(string[] timeZoneIds) : TimeZoneTree(timeZoneIds, new TimeZoneBuilderNode(default))
 {
     /// <summary>
-    /// Gets or sets the number of nodes in the <see cref="TimeZoneBuilderTree"/>.
+    /// Gets the root node of the builder tree.
     /// </summary>
-    public new int NodeCount
-    {
-        get => base.NodeCount;
-        internal set => base.NodeCount = value;
-    }
+    public new TimeZoneNode Root => base.Root;
 
     /// <summary>
-    /// Gets the mutable root node of the builder tree as a <see cref="TimeZoneBuilderNode"/>.
+    /// Gets a reference to the internal node count of the builder tree.
+    /// This property allows direct manipulation of the underlying node count value.
     /// </summary>
-    internal new TimeZoneNode Root => base.Root;
+    public new ref int NodeCountRef => ref base.NodeCountRef;
 
     /// <summary>
     /// Serializes the <see cref="TimeZoneBuilderTree"/> to the given <see cref="Stream"/>.

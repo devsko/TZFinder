@@ -11,21 +11,6 @@ public class TimeZoneNode
     private TimeZoneIndex _index;
 
     /// <summary>
-    /// Gets the <see cref="TimeZoneIndex"/> associated with this node.
-    /// </summary>
-    public TimeZoneIndex Index
-    {
-        get => _index;
-        protected set => _index = value;
-    }
-
-    /// <summary>
-    /// Gets a reference to the <see cref="TimeZoneIndex"/> associated with this node.
-    /// This allows direct manipulation of the underlying <see cref="TimeZoneIndex"/> value.
-    /// </summary>
-    protected ref TimeZoneIndex IndexRef => ref _index;
-
-    /// <summary>
     /// Gets the child node representing the higher partition.
     /// </summary>
     public TimeZoneNode? Hi { get; protected set; }
@@ -41,7 +26,7 @@ public class TimeZoneNode
     /// <param name="index">The <see cref="TimeZoneIndex"/> to associate with this node.</param>
     public TimeZoneNode(TimeZoneIndex index)
     {
-        Index = index;
+        _index = index;
     }
 
     /// <summary>
@@ -52,8 +37,19 @@ public class TimeZoneNode
     /// <param name="lo">The child node representing the lower partition.</param>
     internal TimeZoneNode(TimeZoneIndex index, TimeZoneNode? hi, TimeZoneNode? lo)
     {
-        Index = index;
+        _index = index;
         Hi = hi;
         Lo = lo;
     }
+
+    /// <summary>
+    /// Gets the <see cref="TimeZoneIndex"/> associated with this node.
+    /// </summary>
+    public TimeZoneIndex Index => _index;
+
+    /// <summary>
+    /// Gets a reference to the <see cref="TimeZoneIndex"/> associated with this node.
+    /// This allows direct manipulation of the underlying <see cref="TimeZoneIndex"/> value.
+    /// </summary>
+    protected ref TimeZoneIndex IndexRef => ref _index;
 }

@@ -13,11 +13,7 @@ public class TimeZoneTree
 {
     private readonly TimeZoneNode _root;
     private readonly string[] _timeZoneIds;
-
-    /// <summary>
-    /// Gets or sets the number of nodes in the time zone tree.
-    /// </summary>
-    public int NodeCount { get; protected set; }
+    private int _nodeCount;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="TimeZoneTree"/> class with the specified time zone identifierss and root node.
@@ -28,7 +24,7 @@ public class TimeZoneTree
     {
         _timeZoneIds = timeZoneIds;
         _root = root;
-        NodeCount = 1;
+        _nodeCount = 1;
     }
 
     /// <summary>
@@ -40,6 +36,17 @@ public class TimeZoneTree
     /// Gets the root node of the time zone tree.
     /// </summary>
     protected TimeZoneNode Root => _root;
+
+    /// <summary>
+    /// Gets the number of nodes in the time zone tree.
+    /// </summary>
+    public int NodeCount => _nodeCount;
+
+    /// <summary>
+    /// Gets a reference to the internal node count of the time zone tree.
+    /// This property allows direct manipulation of the underlying node count value.
+    /// </summary>
+    protected ref int NodeCountRef => ref _nodeCount;
 
     /// <summary>
     /// Deserializes a <see cref="TimeZoneTree"/> from the specified <see cref="Stream"/>.

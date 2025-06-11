@@ -212,7 +212,7 @@ public sealed partial class TimeZoneContext
         TimeZoneNode root = tree.Root;
 
         Channel<Creation> creations = Channel.CreateUnboundedPrioritized<Creation>(new() { Comparer = new CreationComparer() });
-        ConcurrentDictionary<short, int> nodeCounts = new(
+        ConcurrentDictionary<short, int> creationCounts = new(
             Environment.ProcessorCount,
             Sources.Select(source => KeyValuePair.Create(source.Index, source.Included.Length)),
             null);
@@ -224,6 +224,8 @@ public sealed partial class TimeZoneContext
                 await creations.Writer.WriteAsync(new() { Node = root, Index = source.Index, Ring = ring, Box = BBox.World }, cancellationToken);
             }
         }
+
+        int creationsCount = creations.Reader.Count;
 
         Task[] threads = [.. Enumerable
             .Range(0, Environment.ProcessorCount)
@@ -240,15 +242,13 @@ public sealed partial class TimeZoneContext
                 if (creations.Reader.TryRead(out Creation creation))
                 {
                     await AddAsync(creation.Node, creation.Index, creation.Ring, creation.Box, creation.Level);
-                    if (IncrementNodeCount(creation.Index, -1) == 0)
+                    if (IncrementCreationsCount(creation.Index, -1) == 0)
                     {
                         progress.Report(1);
                     }
-                    if (creations.Reader.Count == 0)
+                    if (Interlocked.Decrement(ref creationsCount) == 0)
                     {
-                        // Don't complete the channel, because other threads are
-                        // eventually about to add new creations.
-                        break;
+                        creations.Writer.Complete();
                     }
                 }
             }
@@ -277,7 +277,7 @@ public sealed partial class TimeZoneContext
                         addToChildren = true;
                         if (Unsafe.As<TimeZoneBuilderNode>(node).EnsureChildNodes())
                         {
-                            tree.NodeCount += 2;
+                            Interlocked.Add(ref tree.NodeCountRef, 2);
                         }
                     }
                 }
@@ -288,7 +288,8 @@ public sealed partial class TimeZoneContext
                 (BBox hi, BBox lo) = box.Split(ref level);
                 await creations.Writer.WriteAsync(new() { Node = node.Hi!, Index = index, Ring = ring, Box = hi, Level = level }, cancellationToken);
                 await creations.Writer.WriteAsync(new() { Node = node.Lo!, Index = index, Ring = ring, Box = lo, Level = level }, cancellationToken);
-                IncrementNodeCount(index, 2);
+                IncrementCreationsCount(index, 2);
+                Interlocked.Add(ref creationsCount, 2);
             }
 
             static void AddIndex(TimeZoneNode node, short index, Dictionary<TimeZoneNode, TimeZoneIndex> multiples)
@@ -305,7 +306,7 @@ public sealed partial class TimeZoneContext
             }
         }
 
-        int IncrementNodeCount(short index, int amount) => nodeCounts.AddOrUpdate(index, 1, (_, count) => count + amount);
+        int IncrementCreationsCount(short index, int amount) => creationCounts.AddOrUpdate(index, 1, (_, count) => count + amount);
     }
 
     private struct Consolidation
@@ -314,6 +315,11 @@ public sealed partial class TimeZoneContext
         public TimeZoneIndex2 Index;
         public BBox Box;
         public int Level;
+    }
+
+    private sealed class ConsolidationComparer : IComparer<Consolidation>
+    {
+        public int Compare(Consolidation x, Consolidation y) => y.Level - x.Level;
     }
 
     /// <summary>
@@ -330,7 +336,7 @@ public sealed partial class TimeZoneContext
     /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
     public async Task ConsolidateAsync(TimeZoneBuilderTree tree, IProgress<int> progress, CancellationToken cancellationToken)
     {
-        Channel<Consolidation> consolidations = Channel.CreateUnbounded<Consolidation>();
+        Channel<Consolidation> consolidations = Channel.CreateUnboundedPrioritized<Consolidation>(new() { Comparer = new ConsolidationComparer() });
         await consolidations.Writer.WriteAsync(new Consolidation { Node = tree.Root, Box = BBox.World }, cancellationToken);
 
         int nodes = tree.NodeCount;
@@ -349,6 +355,7 @@ public sealed partial class TimeZoneContext
                 if (consolidations.Reader.TryRead(out Consolidation consolidation))
                 {
                     await ConsolidateAsync(consolidation.Node, consolidation.Index, consolidation.Box, consolidation.Level, indices);
+                    progress.Report(1);
                     if (Interlocked.Decrement(ref nodes) == 0)
                     {
                         consolidations.Writer.Complete();
@@ -389,8 +396,6 @@ public sealed partial class TimeZoneContext
             {
                 Unsafe.As<TimeZoneBuilderNode>(node).IndexRef = new TimeZoneIndex(index.First);
             }
-
-            progress.Report(1);
         }
 
         // Retrieves all time zone indices associated with a given TimeZoneBuilderNode,
