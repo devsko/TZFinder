@@ -15,7 +15,14 @@
              Visible="false" />
   </ItemGroup>
 
-  <Target Name="CheckTimeZoneData" BeforeTargets="Build">
+  <PropertyGroup>
+    <BuildDependsOn>
+      CheckTimeZoneData;
+      $(BuildDependsOn)
+    </BuildDependsOn>
+  </PropertyGroup>
+
+  <Target Name="CheckTimeZoneData">
     <Warning Text="Unknown TimeZoneData '$(TimeZoneData)'"
              Condition="'$(TimeZoneData)' != 'Small' and '$(TimeZoneData)' != 'Medium' and '$(TimeZoneData)' != 'Large' and '$(TimeZoneData)' != 'None'" />
   </Target>
