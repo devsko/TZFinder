@@ -103,7 +103,7 @@ public class Context : BuilderContext<Context>
             }
 
             Directory.CreateDirectory(output);
-            string outputPath = Path.Combine(output, Lookup.DataFileName);
+            string outputPath = Path.Combine(output, TZLookup.DataFileName);
 
             HttpClient client = new();
             client.DefaultRequestHeaders.Add("User-Agent", "TZFinder");
@@ -120,7 +120,7 @@ public class Context : BuilderContext<Context>
             Directory.CreateDirectory(releasePath);
 
             FileResource sourceFile = new(Path.Combine(releasePath, sourceFileName));
-            FileResource timeZoneDataFile = new(Path.Combine(releasePath, $"{maxLevel}_{minRingDistance}_{(includeEtc ? "Etc" : "NoEtc")}_{Lookup.DataFileName}"));
+            FileResource timeZoneDataFile = new(Path.Combine(releasePath, $"{maxLevel}_{minRingDistance}_{(includeEtc ? "Etc" : "NoEtc")}_{TZLookup.DataFileName}"));
             CalculationResource timeZoneCalculation = new(timeZoneDataFile);
 
             Context context = new(cancellationToken)

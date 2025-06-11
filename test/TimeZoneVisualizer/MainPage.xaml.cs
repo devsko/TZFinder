@@ -33,7 +33,7 @@ public sealed partial class MainPage : Page
         float latitude = (float)args.Location.Position.Latitude;
 
         Stopwatch watch = Stopwatch.StartNew();
-        string timeZoneIds = string.Join(", ", Lookup.GetAllTimeZoneIds(longitude, latitude, out BBox box, out TimeZoneIndex index));
+        string timeZoneIds = string.Join(", ", TZLookup.GetAllTimeZoneIds(longitude, latitude, out BBox box, out TimeZoneIndex index));
         watch.Stop();
 
         TimeZone.Text = $"{timeZoneIds} {watch.ElapsedTicks} ticks";
@@ -46,7 +46,7 @@ public sealed partial class MainPage : Page
             boxPolygon.Path = CreatePath(box);
 
             MapPolygon timeZonePolygon = new();
-            Lookup.Traverse(index, box => timeZonePolygon.Paths.Add(CreatePath(box)));
+            TZLookup.Traverse(index, box => timeZonePolygon.Paths.Add(CreatePath(box)));
 
             int hash = index.First ^ index.Second;
             Color color = Color.FromArgb(0x80, (byte)(hash * 200 % 256), (byte)(hash * 700 % 256), (byte)(hash * 1100 % 256));

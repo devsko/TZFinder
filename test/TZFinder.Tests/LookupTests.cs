@@ -20,7 +20,7 @@ public static class LookupTests
 
         void StartLoadData(int i)
         {
-            timeZoneTrees[i] = Lookup.TimeZoneTree;
+            timeZoneTrees[i] = TZLookup.TimeZoneTree;
         }
     }
 
@@ -42,7 +42,7 @@ public static class LookupTests
     [InlineData(-180f, "Etc/GMT+12")]
     public static void EtcTimeZone(float longitude, string expected)
     {
-        Assert.Equal(expected, Lookup.CalculateEtcTimeZoneId(longitude));
+        Assert.Equal(expected, TZLookup.CalculateEtcTimeZoneId(longitude));
     }
 
     [Theory]
@@ -50,6 +50,6 @@ public static class LookupTests
     [InlineData(-181f)]
     public static void EtcTimeZone_Throws(float longitude)
     {
-        Assert.Throws<ArgumentOutOfRangeException>(() => Lookup.CalculateEtcTimeZoneId(longitude));
+        Assert.Throws<ArgumentOutOfRangeException>(() => TZLookup.CalculateEtcTimeZoneId(longitude));
     }
 }

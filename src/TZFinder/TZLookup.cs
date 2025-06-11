@@ -8,7 +8,7 @@ namespace TZFinder;
 /// Provides static methods and properties for looking up time zones based on geographic coordinates.
 /// Handles loading and accessing time zone data from a file or stream, and exposes methods for querying and traversing the time zone tree.
 /// </summary>
-public static class Lookup
+public static class TZLookup
 {
     /// <summary>
     /// The default file name for the time zone data file.
@@ -330,7 +330,6 @@ public static class Lookup
 #endif
         if ((executablePath ??= Process.GetCurrentProcess().MainModule?.FileName) is not null)
         {
-            Console.WriteLine($"executablePath: {executablePath}");
             dataPath = Path.Combine(Path.GetDirectoryName(executablePath)!, DataFileName);
         }
 
