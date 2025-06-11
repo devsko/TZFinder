@@ -30,8 +30,9 @@
              Visible="false" />
 
     <EmbeddedResource Condition="'$(TimeZoneEmbed)' == 'true'"
-             Include="$(MSBuildThisFileDirectory)..\..\data\$(_TimeZoneDataFile)"
-             Link="$(TimeZoneDirectory)TimeZoneData.bin" />
+                      Include="$(MSBuildThisFileDirectory)..\..\data\$(_TimeZoneDataFile)"
+                      Link="$(TimeZoneDirectory)TimeZoneData.bin"
+                      ManifestResourceName="TimeZoneData.bin" />
                       
   </ItemGroup>
 
