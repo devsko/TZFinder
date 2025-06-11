@@ -12,6 +12,7 @@
     <Content Include="$(MSBuildThisFileDirectory)..\..\data\$(_TimeZoneDataFile)"
              Link="TimeZoneData.bin"
              CopyToOutputDirectory="Always"
+             SkipUnchangedFilesOnCopyAlways="true"
              Visible="false" />
   </ItemGroup>
 
