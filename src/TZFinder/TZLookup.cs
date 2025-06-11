@@ -351,11 +351,7 @@ public static class TZLookup
         {
             try
             {
-#if NET9_0_OR_GREATER
                 stream = File.OpenRead(TimeZoneDataPath);
-#else
-                stream = new FileStream(TimeZoneDataPath, FileMode.Open, FileAccess.Read, FileShare.Read, 1, false);
-#endif
             }
             catch (Exception ex)
             {
@@ -374,11 +370,14 @@ public static class TZLookup
 
         static TimeZoneTree LoadFromStream(Stream stream)
         {
-#if !NET9_0_OR_GREATER
-            stream = new BufferedStream(stream, 1024 * 1024);
-#endif
             using GZipStream zip = new(stream, CompressionMode.Decompress, leaveOpen: false);
-            return TimeZoneTree.Deserialize(zip);
+#if NET9_0_OR_GREATER
+            Stream data = zip;
+#else
+            Stream data = new BufferedStream(stream);
+#endif
+
+            return TimeZoneTree.Deserialize(data);
         }
     }
 }
