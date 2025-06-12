@@ -317,7 +317,7 @@ public sealed partial class TimeZoneContext
     private struct Consolidation
     {
         public TimeZoneNode Node;
-        public TimeZoneIndex2 Index;
+        public TimeZoneIndex8 Index;
         public BBox Box;
         public int Level;
     }
@@ -377,7 +377,7 @@ public sealed partial class TimeZoneContext
             }
         }
 
-        async ValueTask ConsolidateAsync(TimeZoneNode node, TimeZoneIndex2 index, BBox box, int level, TimeZoneIndex[] indices)
+        async ValueTask ConsolidateAsync(TimeZoneNode node, TimeZoneIndex8 index, BBox box, int level, TimeZoneIndex[] indices)
         {
             Dictionary<short, TimeZoneSource> sources = _sources;
 
@@ -396,18 +396,19 @@ public sealed partial class TimeZoneContext
                 await consolidations.Writer.WriteAsync(new() { Node = node.Hi, Index = index, Box = hi, Level = level }, cancellationToken).ConfigureAwait(false);
                 await consolidations.Writer.WriteAsync(new() { Node = node.Lo, Index = index, Box = lo, Level = level }, cancellationToken).ConfigureAwait(false);
             }
-            else if (index.Second != 0)
+            else if (index[1] != 0)
             {
                 Array.Clear(indices);
                 foreach (short nodeIndex in index)
                 {
+                    if (nodeIndex == 0) break;
                     GetArea(indices, sources[nodeIndex], box);
                 }
                 Unsafe.As<TimeZoneBuilderNode>(node).IndexRef = GetFinalIndex(indices);
             }
-            else if (index.First != 0)
+            else if (index[0] != 0)
             {
-                Unsafe.As<TimeZoneBuilderNode>(node).IndexRef = new TimeZoneIndex(index.First);
+                Unsafe.As<TimeZoneBuilderNode>(node).IndexRef = new TimeZoneIndex(index[0]);
             }
         }
 
