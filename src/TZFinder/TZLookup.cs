@@ -329,6 +329,10 @@ public static class TZLookup
 #if NET
         executablePath = Environment.ProcessPath;
 #endif
+
+        //Blazor GetCurrentCurrentProcess() fliegt
+        //    probieren EmbeddedResource zu laden
+
         if ((executablePath ??= Process.GetCurrentProcess().MainModule?.FileName) is not null)
         {
             dataPath = Path.Combine(Path.GetDirectoryName(executablePath)!, DataFileName);

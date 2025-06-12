@@ -97,10 +97,7 @@ public sealed partial class TimeZoneContext
     /// This method clears the internal dictionary that maps time zone indices to their corresponding sources.
     /// After calling this method, the <see cref="Sources"/> collection will be empty.
     /// </summary>
-    public void ClearSources()
-    {
-        _sources.Clear();
-    }
+    public void ClearSources() => _sources.Clear();
 
     private TimeZoneContext()
     { }
@@ -192,19 +189,27 @@ public sealed partial class TimeZoneContext
     }
 
     /// <summary>
-    /// Creates a new <see cref="TimeZoneBuilderTree"/> using the loaded time zone sources.
-    /// Each time zone source is added to the tree, incrementing the node count.
-    /// Optionally reports progress after each source is added.
+    /// <para>
+    /// Asynchronously creates a <see cref="TimeZoneBuilderTree"/> representing the spatial partitioning of time zones.
+    /// </para>
+    /// <para>
+    /// This method builds a tree structure by recursively subdividing the world bounding box into smaller regions (nodes),
+    /// assigning time zone indices to each node based on the inclusion rings of the loaded time zone sources.
+    /// </para>
+    /// <para>
+    /// The process is parallelized across multiple threads for efficiency. Each node is processed by checking if its bounding box
+    /// is fully contained within, overlaps with, or is outside the relevant time zone polygons. If a node is not fully contained
+    /// and the maximum tree depth (<paramref name="maxLevel"/>) has not been reached, the node is split and its children are processed recursively.
+    /// </para>
+    /// <para>
+    /// Progress is reported via the <paramref name="progress"/> callback after each completed node.
+    /// </para>
     /// </summary>
-    /// <param name="maxLevel">
-    /// The maximum depth of the tree. Determines how many times the space is partitioned when adding time zone sources.
-    /// </param>
-    /// <param name="progress">
-    /// An optional <see cref="IProgress{T}"/> instance to report the number of sources processed.
-    /// </param>
+    /// <param name="maxLevel">The maximum depth of the tree. Nodes will not be subdivided beyond this level.</param>
+    /// <param name="progress">A progress reporter that receives an increment for each completed node.</param>
     /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
     /// <returns>
-    /// A <see cref="TimeZoneBuilderTree"/> containing all loaded time zone sources.
+    /// A <see cref="Task{TimeZoneBuilderTree}"/> representing the asynchronous operation, with the constructed <see cref="TimeZoneBuilderTree"/> as the result.
     /// </returns>
     public async Task<TimeZoneBuilderTree> CreateTreeAsync(int maxLevel, IProgress<int> progress, CancellationToken cancellationToken)
     {
@@ -212,10 +217,10 @@ public sealed partial class TimeZoneContext
         TimeZoneNode root = tree.Root;
 
         Channel<Creation> creations = Channel.CreateUnboundedPrioritized<Creation>(new() { Comparer = new CreationComparer() });
-        ConcurrentDictionary<short, int> creationCounts = new(
+        ConcurrentDictionary<short, int> indexCreations = new(
             Environment.ProcessorCount,
             Sources.Select(source => KeyValuePair.Create(source.Index, source.Included.Length)),
-            null);
+            comparer: null);
 
         foreach (TimeZoneSource source in Sources)
         {
@@ -225,7 +230,7 @@ public sealed partial class TimeZoneContext
             }
         }
 
-        int creationsCount = creations.Reader.Count;
+        int totalCreations = creations.Reader.Count;
 
         Task[] threads = [.. Enumerable
             .Range(0, Environment.ProcessorCount)
@@ -242,11 +247,11 @@ public sealed partial class TimeZoneContext
                 if (creations.Reader.TryRead(out Creation creation))
                 {
                     await AddAsync(creation.Node, creation.Index, creation.Ring, creation.Box, creation.Level);
-                    if (IncrementCreationsCount(creation.Index, -1) == 0)
+                    if (IncrementIndexCreations(creation.Index, -1) == 0)
                     {
                         progress.Report(1);
                     }
-                    if (Interlocked.Decrement(ref creationsCount) == 0)
+                    if (Interlocked.Decrement(ref totalCreations) == 0)
                     {
                         creations.Writer.Complete();
                     }
@@ -256,17 +261,17 @@ public sealed partial class TimeZoneContext
 
         async ValueTask AddAsync(TimeZoneNode node, short index, List<Position> ring, BBox box, int level)
         {
-            (bool subset, bool overlapping) = Check(CollectionsMarshal.AsSpan(ring), box);
+            (bool isSubset, bool isOverlapping) = CheckRelation(CollectionsMarshal.AsSpan(ring), box);
 
             bool addToChildren = false;
 
             lock (node)
             {
-                if (subset)
+                if (isSubset)
                 {
                     AddIndex(node, index, _multipleTimeZones);
                 }
-                else if (overlapping)
+                else if (isOverlapping)
                 {
                     if (level == maxLevel)
                     {
@@ -288,8 +293,8 @@ public sealed partial class TimeZoneContext
                 (BBox hi, BBox lo) = box.Split(ref level);
                 await creations.Writer.WriteAsync(new() { Node = node.Hi!, Index = index, Ring = ring, Box = hi, Level = level }, cancellationToken);
                 await creations.Writer.WriteAsync(new() { Node = node.Lo!, Index = index, Ring = ring, Box = lo, Level = level }, cancellationToken);
-                IncrementCreationsCount(index, 2);
-                Interlocked.Add(ref creationsCount, 2);
+                IncrementIndexCreations(index, 2);
+                Interlocked.Add(ref totalCreations, 2);
             }
 
             static void AddIndex(TimeZoneNode node, short index, Dictionary<TimeZoneNode, TimeZoneIndex> multiples)
@@ -306,7 +311,7 @@ public sealed partial class TimeZoneContext
             }
         }
 
-        int IncrementCreationsCount(short index, int amount) => creationCounts.AddOrUpdate(index, 1, (_, count) => count + amount);
+        int IncrementIndexCreations(short index, int amount) => indexCreations.AddOrUpdate(index, 1, (_, count) => count + amount);
     }
 
     private struct Consolidation
@@ -323,23 +328,28 @@ public sealed partial class TimeZoneContext
     }
 
     /// <summary>
-    /// Consolidates the time zone indices in the given <see cref="TimeZoneBuilderTree"/> by resolving overlaps and exclusions.
-    /// This process traverses the tree, updating each node's <see cref="TimeZoneIndex"/> to reflect the most accurate set of time zones
-    /// for the corresponding geographic region, taking into account included and excluded rings from all sources.
-    /// The method uses a grid sampling approach to determine the dominant time zone(s) in ambiguous regions.
-    /// Optionally reports progress after processing each node.
+    /// <para>
+    /// Asynchronously consolidates the time zone indices in a <see cref="TimeZoneBuilderTree"/> by traversing its nodes and resolving overlaps and exclusions.
+    /// </para>
+    /// <para>
+    /// This method processes each node in the tree, determining the final <see cref="TimeZoneIndex"/> for each leaf node based on the included and excluded regions
+    /// of the associated <see cref="TimeZoneSource"/> objects. It uses a prioritized channel to distribute work across multiple threads for parallel processing.
+    /// </para>
+    /// <para>
+    /// For each node, the method checks which time zone indices are relevant, applies exclusion logic, and, for leaf nodes, samples a grid of points within the node's bounding box
+    /// to determine the dominant time zone index. The result is written back to the node. Progress is reported via the <paramref name="progress"/> callback.
+    /// </para>
     /// </summary>
-    /// <param name="tree">The <see cref="TimeZoneBuilderTree"/> whose nodes will be consolidated.</param>
-    /// <param name="progress">
-    /// An optional <see cref="IProgress{T}"/> instance to report the number of nodes processed.
-    /// </param>
+    /// <param name="tree">The <see cref="TimeZoneBuilderTree"/> to consolidate.</param>
+    /// <param name="progress">A progress reporter that receives an increment for each processed node.</param>
     /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
     public async Task ConsolidateAsync(TimeZoneBuilderTree tree, IProgress<int> progress, CancellationToken cancellationToken)
     {
         Channel<Consolidation> consolidations = Channel.CreateUnboundedPrioritized<Consolidation>(new() { Comparer = new ConsolidationComparer() });
         await consolidations.Writer.WriteAsync(new Consolidation { Node = tree.Root, Box = BBox.World }, cancellationToken);
 
-        int nodes = tree.NodeCount;
+        int remainingNodes = tree.NodeCount;
 
         Task[] threads = [.. Enumerable
             .Range(0, Environment.ProcessorCount)
@@ -356,7 +366,7 @@ public sealed partial class TimeZoneContext
                 {
                     await ConsolidateAsync(consolidation.Node, consolidation.Index, consolidation.Box, consolidation.Level, indices);
                     progress.Report(1);
-                    if (Interlocked.Decrement(ref nodes) == 0)
+                    if (Interlocked.Decrement(ref remainingNodes) == 0)
                     {
                         consolidations.Writer.Complete();
                     }
@@ -404,17 +414,25 @@ public sealed partial class TimeZoneContext
         // representing multiple time zones.
         static IEnumerable<short> GetMultipleTimeZones(TimeZoneNode node, Dictionary<TimeZoneNode, TimeZoneIndex> multiples)
         {
-            if (node.Index.First == 0) yield break;
-            yield return node.Index.First;
-            if (node.Index.Second == 0) yield break;
-            yield return node.Index.Second;
-
-            if (multiples.TryGetValue(node, out TimeZoneIndex value))
+            if (node.Index.First != 0)
             {
-                if (value.First == 0) yield break;
-                yield return value.First;
-                if (value.Second == 0) yield break;
-                yield return value.Second;
+                yield return node.Index.First;
+                if (node.Index.Second != 0)
+                {
+                    yield return node.Index.Second;
+
+                    if (multiples.TryGetValue(node, out TimeZoneIndex value))
+                    {
+                        if (value.First != 0)
+                        {
+                            yield return value.First;
+                            if (value.Second != 0)
+                            {
+                                yield return value.Second;
+                            }
+                        }
+                    }
+                }
             }
         }
 
@@ -425,7 +443,7 @@ public sealed partial class TimeZoneContext
         {
             foreach (List<Position> ring in source.Excluded)
             {
-                if (Check(CollectionsMarshal.AsSpan(ring), box).Subset)
+                if (CheckRelation(CollectionsMarshal.AsSpan(ring), box).IsSubset)
                 {
                     return true;
                 }
@@ -624,10 +642,10 @@ public sealed partial class TimeZoneContext
     /// <param name="ring">A span of <see cref="Position"/> values representing the closed ring (polygon).</param>
     /// <param name="box">The <see cref="BBox"/> to test for containment or overlap with the ring.</param>
     /// <returns>
-    /// A tuple where <c>Subset</c> is <see langword="true"/> if the box is fully contained within the ring and does not cross any edge,
-    /// and <c>Overlapping</c> is <see langword="true"/> if the box is fully contained, overlaps, or contains the ring's first point.
+    /// A tuple where <c>IsSubset</c> is <see langword="true"/> if the box is fully contained within the ring,
+    /// and <c>IsOverlapping</c> is <see langword="true"/> if the box is not fully outside of the ring.
     /// </returns>
-    private static (bool Subset, bool Overlapping) Check(ReadOnlySpan<Position> ring, BBox box)
+    private static (bool IsSubset, bool IsOverlapping) CheckRelation(ReadOnlySpan<Position> ring, BBox box)
     {
         Position southWest = box.SouthWest;
         Position northEast = box.NorthEast;
@@ -665,18 +683,27 @@ public sealed partial class TimeZoneContext
             (northWestOnEdge || northWestInside) &&
             (southEastOnEdge || southEastInside);
 
-        return (allCornersInside && !edgeCrossing && !isOnEdge, allCornersInside || edgeCrossing || isOnEdge || BoxContains(ring[0]));
+        return (
+            allCornersInside && !edgeCrossing && !isOnEdge,
+            allCornersInside || edgeCrossing || isOnEdge || BoxContains(ring[0]));
 
         bool BoxContains(Position q)
         {
-            int crossings = 0;
-            bool dummy = false;
+            bool isCrossing = false;
+            bool isOnEdge = false;
             for (RingDataWindow box = new([northWest, southWest, southEast, northEast, northWest, southWest, southEast]); box.HasMore; box.Increment())
             {
-                crossings += Crossing(ref box, q, Outside, ref dummy) ? 1 : 0;
+                if (Crossing(ref box, q, Outside, ref isOnEdge))
+                {
+                    isCrossing = !isCrossing;
+                }
+                if (isOnEdge)
+                {
+                    return true;
+                }
             }
 
-            return crossings % 2 != 0;
+            return isCrossing;
         }
     }
 
@@ -693,7 +720,7 @@ public sealed partial class TimeZoneContext
     /// lies exactly on the edge, the <paramref name="isOnEdge"/> flag is set to <see langword="true"/>.
     /// </para>
     /// </summary>
-    /// <remarks>see also https://youtu.be/PvUK52xiFZs?t=1270 for further explanation.</remarks>
+    /// <remarks>See https://youtu.be/PvUK52xiFZs?t=1270 for further explanation.</remarks>
     /// <param name="p">
     /// A <see cref="RingDataWindow"/> providing the current four-point window over the polygon ring.
     /// </param>

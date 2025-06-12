@@ -2,14 +2,13 @@
 <Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
 
   <PropertyGroup>
-    
+
     <TimeZoneData Condition="'$(TimeZoneData)' == ''">Medium</TimeZoneData>
-    <TimeZoneDirectory Condition="'$(TimeZoneDirectory)' != '' and !HasTrailingSlash('$(TimeZoneDirectory)')">$(TimeZoneDirectory)\</TimeZoneDirectory>
-    <TimeZoneEmbed Condition="'$(TimeZoneEmbed)' == ''">false</TimeZoneEmbed>
-    
-    <_TimeZoneDataFile Condition="'$(TimeZoneData)' == 'Small'">20_5000_NoEtc_TimeZoneData.bin</_TimeZoneDataFile>
-    <_TimeZoneDataFile Condition="'$(TimeZoneData)' == 'Medium'">25_600_NoEtc_TimeZoneData.bin</_TimeZoneDataFile>
-    <_TimeZoneDataFile Condition="'$(TimeZoneData)' == 'Large'">30_152_NoEtc_TimeZoneData.bin</_TimeZoneDataFile>
+    <TimeZoneItem Condition="'$(TimeZoneItem)' == ''">Content</TimeZoneItem>
+
+    <_TimeZoneSourceFile Condition="'$(TimeZoneData)' == 'Small'">20_5000_NoEtc_TimeZoneData.bin</_TimeZoneSourceFile>
+    <_TimeZoneSourceFile Condition="'$(TimeZoneData)' == 'Medium'">25_600_NoEtc_TimeZoneData.bin</_TimeZoneSourceFile>
+    <_TimeZoneSourceFile Condition="'$(TimeZoneData)' == 'Large'">30_152_NoEtc_TimeZoneData.bin</_TimeZoneSourceFile>
 
   </PropertyGroup>
 
@@ -17,24 +16,23 @@
   Only add the data file if used in an app. UWP Native cannot handle duplicates 
   from transitive packages.
   -->
-  <ItemGroup Condition="'$(_TimeZoneDataFile)' != '' and (
+  <ItemGroup Condition="'$(_TimeZoneSourceFile)' != '' and (
                         '$(OutputType)' == 'Exe' or 
                         '$(OutputType)' == 'WinExe' or 
                         '$(OutputType)' == 'AppContainerExe')">
-    
-    <Content Condition="'$(TimeZoneEmbed)' == 'false'"
-             Include="$(MSBuildThisFileDirectory)..\..\data\$(_TimeZoneDataFile)"
-             Link="$(TimeZoneDirectory)TimeZoneData.bin"
+
+    <Content Condition="'$(TimeZoneItem)' == 'Content'"
+             Include="$(MSBuildThisFileDirectory)..\..\data\$(_TimeZoneSourceFile)"
+             Link="TimeZoneData.bin"
              CopyToOutputDirectory="Always"
              SkipUnchangedFilesOnCopyAlways="true"
              Visible="false" />
 
-    <EmbeddedResource Condition="'$(TimeZoneEmbed)' == 'true'"
-                      Include="$(MSBuildThisFileDirectory)..\..\data\$(_TimeZoneDataFile)"
+    <EmbeddedResource Condition="'$(TimeZoneItem)' == 'EmbeddedResource'"
+                      Include="$(MSBuildThisFileDirectory)..\..\data\$(_TimeZoneSourceFile)"
                       Link="$(TimeZoneDirectory)TimeZoneData.bin"
-                      ManifestResourceName="TimeZoneData.bin"
                       LogicalName="TimeZoneData.bin"/>
-                      
+
   </ItemGroup>
 
   <PropertyGroup>
@@ -43,10 +41,12 @@
       $(BuildDependsOn)
     </BuildDependsOn>
   </PropertyGroup>
-  
+
   <Target Name="CheckTimeZoneData">
-    <Error Text="Unknown TimeZoneData '$(TimeZoneData)'" 
-             Condition="'$(TimeZoneData)' != 'Small' and '$(TimeZoneData)' != 'Medium' and '$(TimeZoneData)' != 'Large' and '$(TimeZoneData)' != 'None'" />
+    <Error Text="Unknown TimeZoneData '$(TimeZoneData)'"
+           Condition="'$(TimeZoneData)' != 'Small' and '$(TimeZoneData)' != 'Medium' and '$(TimeZoneData)' != 'Large' and '$(TimeZoneData)' != 'None'" />
+    <Error Text="Unknown TimeZoneItem '$(TimeZoneItem)'"
+           Condition = "'$(TimeZoneItem)' != 'Content' and '$(TimeZoneItem)' != 'EmbeddedResource'" />
   </Target>
-  
+
 </Project>
