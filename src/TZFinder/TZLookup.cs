@@ -344,9 +344,6 @@ public static class TZLookup
             dataPath = Path.Combine(Path.GetDirectoryName(executablePath)!, DataFileName);
         }
 
-        string? asm = Assembly.GetEntryAssembly()?.FullName!;
-        string[] names = Assembly.GetEntryAssembly()!.GetManifestResourceNames();
-
         return File.Exists(dataPath)
             ? dataPath!
             : Assembly.GetEntryAssembly()!.GetManifestResourceInfo(EmbeddedResourceName) is not null
