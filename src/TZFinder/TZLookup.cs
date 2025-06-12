@@ -22,6 +22,8 @@ public static class TZLookup
     /// </summary>
     public const string EmbeddedResourceMoniker = $"/embedded:";
 
+    private const string EmbeddedResourceName = $"TZFinder.{DataFileName}";
+
     private static readonly Lazy<TimeZoneTree> _timeZoneTree = new(Load);
     private static string? _timeZoneDataPath;
     private static Stream? _timeZoneDataStream;
@@ -344,8 +346,8 @@ public static class TZLookup
 
         return File.Exists(dataPath)
             ? dataPath!
-            : Assembly.GetCallingAssembly().GetManifestResourceInfo(DataFileName) is not null
-            ? $"{EmbeddedResourceMoniker}{DataFileName}"
+            : Assembly.GetCallingAssembly().GetManifestResourceInfo(EmbeddedResourceName) is not null
+            ? $"{EmbeddedResourceMoniker}{EmbeddedResourceName}"
             : throw new InvalidOperationException($"Time zone data file not found{(executablePath is not null ? $" at '{executablePath}'" : "")}. Consider setting {nameof(TimeZoneDataPath)}.");
 
         static Process? GetProcess()
@@ -370,10 +372,10 @@ public static class TZLookup
         {
             stream = _timeZoneDataStream;
         }
-        else if (TimeZoneDataPath.StartsWith(EmbeddedResourceMoniker))
+        else if (TimeZoneDataPath.StartsWith(EmbeddedResourceMoniker, StringComparison.OrdinalIgnoreCase))
         {
             string resource = TimeZoneDataPath[EmbeddedResourceMoniker.Length..];
-            stream = Assembly.GetCallingAssembly().GetManifestResourceStream(resource)
+            stream = Assembly.GetExecutingAssembly().GetManifestResourceStream(resource)
                 ?? throw new InvalidOperationException($"Time zone resource not found {resource}.");
         }
         else
