@@ -92,13 +92,6 @@ public sealed partial class TimeZoneContext
     /// <returns>The <see cref="TimeZoneSource"/> for the given time zone identifier.</returns>
     public TimeZoneSource GetSource(string id) => _sources[_indices[id]];
 
-    /// <summary>
-    /// Removes all loaded <see cref="TimeZoneSource"/> objects from the current context.
-    /// This method clears the internal dictionary that maps time zone indices to their corresponding sources.
-    /// After calling this method, the <see cref="Sources"/> collection will be empty.
-    /// </summary>
-    public void ClearSources() => _sources.Clear();
-
     private TimeZoneContext()
     { }
 
@@ -119,8 +112,11 @@ public sealed partial class TimeZoneContext
     /// <exception cref="NotSupportedException">
     /// Thrown if the geometry type in the GeoJSON is not supported (i.e., not <see cref="Polygon"/> or <see cref="MultiPolygon"/>).
     /// </exception>
-    public static async Task<TimeZoneContext> LoadAsync(Stream stream, int minRingDistance, CancellationToken cancellationToken)
+    public static async Task<TimeZoneContext> LoadAsync(Stream stream, int minRingDistance, CancellationToken cancellationToken = default)
     {
+        ArgumentNullException.ThrowIfNull(stream);
+        ArgumentOutOfRangeException.ThrowIfLessThan(minRingDistance, 1);
+
         GeoSingle2D geo = new(JsonContext.Default, typeof(TimeZoneProperties));
         FeatureCollection<TimeZoneProperties> collection = await geo.DeserializeAsync<FeatureCollection<TimeZoneProperties>>(stream, cancellationToken).ConfigureAwait(false) ?? throw new InvalidOperationException();
 
@@ -211,8 +207,12 @@ public sealed partial class TimeZoneContext
     /// <returns>
     /// A <see cref="Task{TimeZoneBuilderTree}"/> representing the asynchronous operation, with the constructed <see cref="TimeZoneBuilderTree"/> as the result.
     /// </returns>
-    public async Task<TimeZoneBuilderTree> CreateTreeAsync(int maxLevel, IProgress<int> progress, CancellationToken cancellationToken)
+    public async Task<TimeZoneBuilderTree> CreateTreeAsync(int maxLevel, IProgress<int> progress, CancellationToken cancellationToken = default)
     {
+        ArgumentOutOfRangeException.ThrowIfLessThan(maxLevel, 1);
+        ArgumentOutOfRangeException.ThrowIfGreaterThan(maxLevel, 55);
+        ArgumentNullException.ThrowIfNull(progress);
+
         TimeZoneBuilderTree tree = new([.. Sources.Select(source => source.Id)]);
         TimeZoneNode root = tree.Root;
 
@@ -344,8 +344,11 @@ public sealed partial class TimeZoneContext
     /// <param name="progress">A progress reporter that receives an increment for each processed node.</param>
     /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
     /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
-    public async Task ConsolidateAsync(TimeZoneBuilderTree tree, IProgress<int> progress, CancellationToken cancellationToken)
+    public async Task ConsolidateAsync(TimeZoneBuilderTree tree, IProgress<int> progress, CancellationToken cancellationToken = default)
     {
+        ArgumentNullException.ThrowIfNull(tree);
+        ArgumentNullException.ThrowIfNull(progress);
+
         Channel<Consolidation> consolidations = Channel.CreateUnboundedPrioritized<Consolidation>(new() { Comparer = new ConsolidationComparer() });
         await consolidations.Writer.WriteAsync(new Consolidation { Node = tree.Root, Box = BBox.World }, cancellationToken).ConfigureAwait(false);
 

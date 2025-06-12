@@ -25,11 +25,11 @@ public readonly struct Position : IEquatable<Position>
     /// </exception>
     public Position(float longitude, float latitude)
     {
-        if (float.IsNaN(longitude) || longitude > 180 || longitude < -180)
+        if (float.IsNaN(longitude) || longitude is > 180 or < -180)
         {
             throw new ArgumentOutOfRangeException(nameof(longitude));
         }
-        if (float.IsNaN(latitude) || latitude > 90 || latitude < -90)
+        if (float.IsNaN(latitude) || latitude is > 90 or < -90)
         {
             throw new ArgumentOutOfRangeException(nameof(latitude));
         }

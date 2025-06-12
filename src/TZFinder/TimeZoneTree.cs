@@ -22,6 +22,20 @@ public class TimeZoneTree
     /// <param name="root">The root node of the time zone tree.</param>
     protected internal TimeZoneTree(string[] timeZoneIds, TimeZoneNode root)
     {
+#if NET8_0_OR_GREATER
+        ArgumentNullException.ThrowIfNull(timeZoneIds);
+        ArgumentNullException.ThrowIfNull(root);
+#else
+        if (timeZoneIds is null)
+        {
+            throw new ArgumentNullException(nameof(timeZoneIds));
+        }
+        if (root is null)
+        {
+            throw new ArgumentNullException(nameof(root));
+        }
+#endif
+
         _timeZoneIds = timeZoneIds;
         _root = root;
         _nodeCount = 1;
@@ -55,6 +69,15 @@ public class TimeZoneTree
     /// <returns>The deserialized <see cref="TimeZoneTree"/> instance.</returns>
     public static TimeZoneTree Deserialize(Stream stream)
     {
+#if NET8_0_OR_GREATER
+        ArgumentNullException.ThrowIfNull(stream);
+#else
+        if (stream is null)
+        {
+            throw new ArgumentNullException(nameof(stream));
+        }
+#endif
+
         using BinaryReader reader = new(stream, Encoding.UTF8, leaveOpen: false);
 
         short capacity = reader.ReadInt16();
@@ -158,6 +181,15 @@ public class TimeZoneTree
     /// </param>
     public void Traverse(Action<TimeZoneIndex, BBox> action)
     {
+#if NET8_0_OR_GREATER
+        ArgumentNullException.ThrowIfNull(action);
+#else
+        if (action is null)
+        {
+            throw new ArgumentNullException(nameof(action));
+        }
+#endif
+
         Traverse(action, _root, BBox.World, 0);
 
         static void Traverse(Action<TimeZoneIndex, BBox> action, TimeZoneNode node, BBox box, int level)

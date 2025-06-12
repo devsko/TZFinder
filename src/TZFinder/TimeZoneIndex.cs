@@ -45,10 +45,10 @@ public struct TimeZoneIndex : IEquatable<TimeZoneIndex>, IEnumerable<short>
     /// <returns>
     /// <see langword="true"/> if the index was added or already present; <see langword="false"/> if the structure is full and the index is not present.
     /// </returns>
-    /// <exception cref="ArgumentOutOfRangeException">Thrown when <paramref name="index"/> is 0.</exception>
+    /// <exception cref="ArgumentOutOfRangeException">Thrown when <paramref name="index"/> is less than or equal 0.</exception>
     public bool Add(short index)
     {
-        if (index == 0)
+        if (index <= 0)
         {
             throw new ArgumentOutOfRangeException(nameof(index));
         }
