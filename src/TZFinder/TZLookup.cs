@@ -344,12 +344,12 @@ public static class TZLookup
             dataPath = Path.Combine(Path.GetDirectoryName(executablePath)!, DataFileName);
         }
 
-        string asm = Assembly.GetExecutingAssembly().FullName!;
-        string[] names = Assembly.GetExecutingAssembly().GetManifestResourceNames();
+        string? asm = Assembly.GetEntryAssembly()?.FullName!;
+        string[] names = Assembly.GetEntryAssembly()!.GetManifestResourceNames();
 
         return File.Exists(dataPath)
             ? dataPath!
-            : Assembly.GetCallingAssembly().GetManifestResourceInfo(EmbeddedResourceName) is not null
+            : Assembly.GetEntryAssembly()!.GetManifestResourceInfo(EmbeddedResourceName) is not null
             ? $"{EmbeddedResourceMoniker}{EmbeddedResourceName}"
             : throw new InvalidOperationException($"Time zone data file not found{(executablePath is not null ? $" at '{executablePath}'" : "")}. Consider setting {nameof(TimeZoneDataPath)}.");
 
