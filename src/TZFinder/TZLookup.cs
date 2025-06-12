@@ -410,6 +410,6 @@ public static class TZLookup
             ? dataPath!
             : Assembly.GetEntryAssembly()?.GetManifestResourceInfo(DataFileName) is not null
             ? $"{EmbeddedResourceMoniker}{DataFileName}"
-            : throw new InvalidOperationException($"Time zone data file not found{(processPath is not null ? $" at '{processPath}'" : "")}. Consider setting {nameof(TimeZoneDataPath)}.");
+            : throw new InvalidOperationException($"Time zone data file not found{(processPath is not null ? $" at '{Path.GetDirectoryName(processPath)}'" : "")}. Consider setting {nameof(TimeZoneDataPath)}.");
     }
 }

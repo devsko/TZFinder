@@ -24,7 +24,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <Content Include="TimeZoneData.bin" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="TZFinder.TimeZoneData.bin" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
   
   <ItemGroup>
