@@ -24,17 +24,17 @@
 ## Getting started
 
 Install the TZFinder package.
-```
+```batchfile
 dotnet package add TZFinder
 ```
 
 Simple retrieval of the IANA id at a position
-``` csharp
+```c#
 string id = TZFinder.TZLookup.GetTimeZoneId(2.255419f, 47.479083f); // Europe/Paris
 ```
 
 Optionally, the data file can be selected in the `.csproj` (default: `Medium`)
-``` xml
+```xml
   <PropertyGroup>
     <TimeZoneData>Large</TimeZoneData>
   </PropertyGroup>
