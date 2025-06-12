@@ -344,6 +344,9 @@ public static class TZLookup
             dataPath = Path.Combine(Path.GetDirectoryName(executablePath)!, DataFileName);
         }
 
+        string asm = Assembly.GetExecutingAssembly().FullName!;
+        string[] names = Assembly.GetExecutingAssembly().GetManifestResourceNames();
+
         return File.Exists(dataPath)
             ? dataPath!
             : Assembly.GetCallingAssembly().GetManifestResourceInfo(EmbeddedResourceName) is not null
@@ -357,8 +360,9 @@ public static class TZLookup
                 // Throws in browser
                 return Process.GetCurrentProcess();
             }
-            catch
+            catch (Exception ex)
             {
+                ex.ToString();
                 return null;
             }
         }
