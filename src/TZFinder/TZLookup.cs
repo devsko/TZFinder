@@ -355,18 +355,15 @@ public static class TZLookup
 
         static Process? GetProcess()
         {
-            Exception? _ex = null;
             try
             {
                 // Throws in browser
                 return Process.GetCurrentProcess();
             }
-            catch (Exception ex)
+            catch (PlatformNotSupportedException)
             {
-                _ex = ex;
+                return null;
             }
-            _ex.ToString();
-            return null;
         }
     }
 
@@ -381,7 +378,7 @@ public static class TZLookup
         else if (TimeZoneDataPath.StartsWith(EmbeddedResourceMoniker, StringComparison.OrdinalIgnoreCase))
         {
             string resource = TimeZoneDataPath[EmbeddedResourceMoniker.Length..];
-            stream = Assembly.GetExecutingAssembly().GetManifestResourceStream(resource)
+            stream = Assembly.GetEntryAssembly()!.GetManifestResourceStream(resource)
                 ?? throw new InvalidOperationException($"Time zone resource not found {resource}.");
         }
         else
