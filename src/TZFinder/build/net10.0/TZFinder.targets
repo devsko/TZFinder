@@ -40,6 +40,7 @@
     <AndroidAsset Condition="'$(TimeZoneItem)' == 'AndroidAsset'"
                   Include="$(MSBuildThisFileDirectory)..\..\data\$(_TimeZoneSourceFile)"
                   Link="$(TimeZoneDirectory)TimeZoneData.bin"
+                  AssetPack="$(TimeZoneAndroidAssetPack)"
                   Visible="false" />
 
   </ItemGroup>

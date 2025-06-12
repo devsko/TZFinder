@@ -34,14 +34,15 @@
     <EmbeddedResource Condition="'$(TimeZoneItem)' == 'EmbeddedResource'"
                       Include="$(MSBuildThisFileDirectory)..\..\data\$(_TimeZoneSourceFile)"
                       Link="$(TimeZoneDirectory)TimeZoneData.bin"
-                      LogicalName="TZFinder.TimeZoneData.bin" 
+                      LogicalName="TZFinder.TimeZoneData.bin"
                       Visible="false" />
 
     <AndroidAsset Condition="'$(TimeZoneItem)' == 'AndroidAsset'"
                   Include="$(MSBuildThisFileDirectory)..\..\data\$(_TimeZoneSourceFile)"
                   Link="$(TimeZoneDirectory)TimeZoneData.bin"
+                  AssetPack="$(TimeZoneAndroidAssetPack)"
                   Visible="false" />
-    
+
   </ItemGroup>
 
   <PropertyGroup>

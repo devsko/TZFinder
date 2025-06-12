@@ -354,7 +354,6 @@ public static class TZLookup
 
         return File.Exists(dataPath)
             ? dataPath!
-            // GetEntryAssembly() is null on Android
             : Assembly.GetEntryAssembly()?.GetManifestResourceInfo(EmbeddedResourceName) is not null
             ? $"{EmbeddedResourceMoniker}{EmbeddedResourceName}"
             : throw new InvalidOperationException($"Time zone data file not found{(processPath is not null ? $" at '{processPath}'" : "")}. Consider setting {nameof(TimeZoneDataPath)}.");
