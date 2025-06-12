@@ -14,15 +14,13 @@ public static class TZLookup
     /// <summary>
     /// The default file name for the time zone data file.
     /// </summary>
-    public const string DataFileName = "TimeZoneData.bin";
+    public const string DataFileName = "TZFinder.TimeZoneData.bin";
 
     /// <summary>
     /// The moniker used to indicate that the time zone data should be loaded from an embedded resource.
     /// The name of the resource must be appended.
     /// </summary>
     public const string EmbeddedResourceMoniker = $"embedded://";
-
-    private const string EmbeddedResourceName = $"TZFinder.{DataFileName}";
 
     private static readonly Lazy<TimeZoneTree> _timeZoneTree = new(Load);
     private static string? _timeZoneDataPath;
@@ -354,8 +352,8 @@ public static class TZLookup
 
         return File.Exists(dataPath)
             ? dataPath!
-            : Assembly.GetEntryAssembly()?.GetManifestResourceInfo(EmbeddedResourceName) is not null
-            ? $"{EmbeddedResourceMoniker}{EmbeddedResourceName}"
+            : Assembly.GetEntryAssembly()?.GetManifestResourceInfo(DataFileName) is not null
+            ? $"{EmbeddedResourceMoniker}{DataFileName}"
             : throw new InvalidOperationException($"Time zone data file not found{(processPath is not null ? $" at '{processPath}'" : "")}. Consider setting {nameof(TimeZoneDataPath)}.");
     }
 

@@ -4,42 +4,50 @@
   <PropertyGroup>
 
     <TimeZoneData Condition="'$(TimeZoneData)' == ''">Medium</TimeZoneData>
-    <!-- Conent is not supported and GetEntryAssembly() returns null in android applications. -->
-    <TimeZoneItem Condition="'$(TimeZoneItem)' == '' and '$(AndroidApplication)' == 'true'">AndroidAsset</TimeZoneItem>
+
+    <TimeZoneItem Condition="'$(TimeZoneItem)' == '' and '$(UseMaui)' != 'true' and '$(AndroidApplication)' == 'true'">AndroidAsset</TimeZoneItem>
+    <TimeZoneItem Condition="'$(TimeZoneItem)' == '' and '$(UseMaui)' == 'true'">MauiAsset</TimeZoneItem>
     <TimeZoneItem Condition="'$(TimeZoneItem)' == ''">Content</TimeZoneItem>
 
     <_TimeZoneSourceFile Condition="'$(TimeZoneData)' == 'Small'">20_5000_NoEtc_TimeZoneData.bin</_TimeZoneSourceFile>
     <_TimeZoneSourceFile Condition="'$(TimeZoneData)' == 'Medium'">25_600_NoEtc_TimeZoneData.bin</_TimeZoneSourceFile>
     <_TimeZoneSourceFile Condition="'$(TimeZoneData)' == 'Large'">30_152_NoEtc_TimeZoneData.bin</_TimeZoneSourceFile>
 
+    <_TimeZoneSourcePath>$(MSBuildThisFileDirectory)..\..\data\$(_TimeZoneSourceFile)</_TimeZoneSourcePath>
+
+    <_TimeZoneFile>TZFinder.TimeZoneData.bin</_TimeZoneFile>
+
   </PropertyGroup>
 
-  <!-- 
-  Only add the data file if used in an app. UWP Native cannot handle duplicates 
-  from transitive packages.
-  -->
   <ItemGroup Condition="'$(_TimeZoneSourceFile)' != '' and (
                         '$(OutputType)' == 'Exe' or 
                         '$(OutputType)' == 'WinExe' or 
                         '$(OutputType)' == 'AppContainerExe' or
+                        '$(UseMaui)' == 'true' or
                         '$(AndroidApplication)' == 'true')">
 
     <Content Condition="'$(TimeZoneItem)' == 'Content'"
-             Include="$(MSBuildThisFileDirectory)..\..\data\$(_TimeZoneSourceFile)"
-             Link="TimeZoneData.bin"
+             Include="$(_TimeZoneSourcePath)"
+             Link="$(_TimeZoneFile)"
              CopyToOutputDirectory="Always"
              SkipUnchangedFilesOnCopyAlways="true"
              Visible="false" />
 
     <EmbeddedResource Condition="'$(TimeZoneItem)' == 'EmbeddedResource'"
-                      Include="$(MSBuildThisFileDirectory)..\..\data\$(_TimeZoneSourceFile)"
-                      Link="$(TimeZoneDirectory)TimeZoneData.bin"
-                      LogicalName="TZFinder.TimeZoneData.bin"
+                      Include="$(_TimeZoneSourcePath)"
+                      Link="$(_TimeZoneFile)"
+                      LogicalName="$(_TimeZoneFile)"
                       Visible="false" />
 
+    <MauiAsset Condition="'$(TimeZoneItem)' == 'MauiAsset'"
+               Include="$(_TimeZoneSourcePath)"
+               Link="$(_TimeZoneFile)"
+               LogicalName="$(_TimeZoneFile)"
+               Visible="false" />
+
     <AndroidAsset Condition="'$(TimeZoneItem)' == 'AndroidAsset'"
-                  Include="$(MSBuildThisFileDirectory)..\..\data\$(_TimeZoneSourceFile)"
-                  Link="$(TimeZoneDirectory)TimeZoneData.bin"
+                  Include="$(_TimeZoneSourcePath)"
+                  Link="$(_TimeZoneFile)"
                   AssetPack="$(TimeZoneAndroidAssetPack)"
                   Visible="false" />
 
@@ -56,7 +64,7 @@
     <Error Text="Unknown TimeZoneData '$(TimeZoneData)'"
            Condition="'$(TimeZoneData)' != 'Small' and '$(TimeZoneData)' != 'Medium' and '$(TimeZoneData)' != 'Large' and '$(TimeZoneData)' != 'None'" />
     <Error Text="Unknown TimeZoneItem '$(TimeZoneItem)'"
-           Condition = "'$(TimeZoneItem)' != 'Content' and '$(TimeZoneItem)' != 'EmbeddedResource' and '$(TimeZoneItem)' != 'AndroidAsset'" />
+           Condition = "'$(TimeZoneItem)' != 'Content' and '$(TimeZoneItem)' != 'EmbeddedResource' and '$(TimeZoneItem)' != 'MauiAsset' and '$(TimeZoneItem)' != 'AndroidAsset'" />
   </Target>
 
 </Project>
