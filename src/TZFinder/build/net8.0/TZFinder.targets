@@ -4,6 +4,8 @@
   <PropertyGroup>
 
     <TimeZoneData Condition="'$(TimeZoneData)' == ''">Medium</TimeZoneData>
+    <!-- Conent is not supported in android applications.-->
+    <TimeZoneItem Condition="'$(TimeZoneItem)' == '' and '$(AndroidApplication)' == 'true'">EmbeddedResource</TimeZoneItem>
     <TimeZoneItem Condition="'$(TimeZoneItem)' == ''">Content</TimeZoneItem>
 
     <_TimeZoneSourceFile Condition="'$(TimeZoneData)' == 'Small'">20_5000_NoEtc_TimeZoneData.bin</_TimeZoneSourceFile>
