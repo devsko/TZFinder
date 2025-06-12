@@ -19,7 +19,8 @@
   <ItemGroup Condition="'$(_TimeZoneSourceFile)' != '' and (
                         '$(OutputType)' == 'Exe' or 
                         '$(OutputType)' == 'WinExe' or 
-                        '$(OutputType)' == 'AppContainerExe')">
+                        '$(OutputType)' == 'AppContainerExe' or
+                        '$(AndroidApplication)' == 'true')">
 
     <Content Condition="'$(TimeZoneItem)' == 'Content'"
              Include="$(MSBuildThisFileDirectory)..\..\data\$(_TimeZoneSourceFile)"
