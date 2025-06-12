@@ -122,7 +122,7 @@ public sealed partial class TimeZoneContext
     public static async Task<TimeZoneContext> LoadAsync(Stream stream, int minRingDistance, CancellationToken cancellationToken)
     {
         GeoSingle2D geo = new(JsonContext.Default, typeof(TimeZoneProperties));
-        FeatureCollection<TimeZoneProperties> collection = await geo.DeserializeAsync<FeatureCollection<TimeZoneProperties>>(stream, cancellationToken) ?? throw new InvalidOperationException();
+        FeatureCollection<TimeZoneProperties> collection = await geo.DeserializeAsync<FeatureCollection<TimeZoneProperties>>(stream, cancellationToken).ConfigureAwait(false) ?? throw new InvalidOperationException();
 
         TimeZoneContext context = new();
         foreach (Feature<TimeZoneProperties> feature in collection.Features)
@@ -226,7 +226,7 @@ public sealed partial class TimeZoneContext
         {
             foreach (List<Position> ring in source.Included)
             {
-                await creations.Writer.WriteAsync(new() { Node = root, Index = source.Index, Ring = ring, Box = BBox.World }, cancellationToken);
+                await creations.Writer.WriteAsync(new() { Node = root, Index = source.Index, Ring = ring, Box = BBox.World }, cancellationToken).ConfigureAwait(false);
             }
         }
 
@@ -236,17 +236,17 @@ public sealed partial class TimeZoneContext
             .Range(0, Environment.ProcessorCount)
             .Select(_ => Task.Run(ProcessCreationAsync))];
 
-        await Task.WhenAll(threads);
+        await Task.WhenAll(threads).ConfigureAwait(false);
 
         return tree;
 
         async Task ProcessCreationAsync()
         {
-            while (await creations.Reader.WaitToReadAsync(cancellationToken))
+            while (await creations.Reader.WaitToReadAsync(cancellationToken).ConfigureAwait(false))
             {
                 if (creations.Reader.TryRead(out Creation creation))
                 {
-                    await AddAsync(creation.Node, creation.Index, creation.Ring, creation.Box, creation.Level);
+                    await AddAsync(creation.Node, creation.Index, creation.Ring, creation.Box, creation.Level).ConfigureAwait(false);
                     if (IncrementIndexCreations(creation.Index, -1) == 0)
                     {
                         progress.Report(1);
@@ -291,8 +291,8 @@ public sealed partial class TimeZoneContext
             if (addToChildren)
             {
                 (BBox hi, BBox lo) = box.Split(ref level);
-                await creations.Writer.WriteAsync(new() { Node = node.Hi!, Index = index, Ring = ring, Box = hi, Level = level }, cancellationToken);
-                await creations.Writer.WriteAsync(new() { Node = node.Lo!, Index = index, Ring = ring, Box = lo, Level = level }, cancellationToken);
+                await creations.Writer.WriteAsync(new() { Node = node.Hi!, Index = index, Ring = ring, Box = hi, Level = level }, cancellationToken).ConfigureAwait(false);
+                await creations.Writer.WriteAsync(new() { Node = node.Lo!, Index = index, Ring = ring, Box = lo, Level = level }, cancellationToken).ConfigureAwait(false);
                 IncrementIndexCreations(index, 2);
                 Interlocked.Add(ref totalCreations, 2);
             }
@@ -347,7 +347,7 @@ public sealed partial class TimeZoneContext
     public async Task ConsolidateAsync(TimeZoneBuilderTree tree, IProgress<int> progress, CancellationToken cancellationToken)
     {
         Channel<Consolidation> consolidations = Channel.CreateUnboundedPrioritized<Consolidation>(new() { Comparer = new ConsolidationComparer() });
-        await consolidations.Writer.WriteAsync(new Consolidation { Node = tree.Root, Box = BBox.World }, cancellationToken);
+        await consolidations.Writer.WriteAsync(new Consolidation { Node = tree.Root, Box = BBox.World }, cancellationToken).ConfigureAwait(false);
 
         int remainingNodes = tree.NodeCount;
 
@@ -355,16 +355,16 @@ public sealed partial class TimeZoneContext
             .Range(0, Environment.ProcessorCount)
             .Select(_ => Task.Run(ProcessConsolidationAsync))];
 
-        await Task.WhenAll(threads);
+        await Task.WhenAll(threads).ConfigureAwait(false);
 
         async Task ProcessConsolidationAsync()
         {
             TimeZoneIndex[] indices = new TimeZoneIndex[25];
-            while (await consolidations.Reader.WaitToReadAsync(cancellationToken))
+            while (await consolidations.Reader.WaitToReadAsync(cancellationToken).ConfigureAwait(false))
             {
                 if (consolidations.Reader.TryRead(out Consolidation consolidation))
                 {
-                    await ConsolidateAsync(consolidation.Node, consolidation.Index, consolidation.Box, consolidation.Level, indices);
+                    await ConsolidateAsync(consolidation.Node, consolidation.Index, consolidation.Box, consolidation.Level, indices).ConfigureAwait(false);
                     progress.Report(1);
                     if (Interlocked.Decrement(ref remainingNodes) == 0)
                     {
@@ -390,8 +390,8 @@ public sealed partial class TimeZoneContext
             {
                 Unsafe.As<TimeZoneBuilderNode>(node).IndexRef = default;
                 (BBox hi, BBox lo) = box.Split(ref level);
-                await consolidations.Writer.WriteAsync(new() { Node = node.Hi, Index = index, Box = hi, Level = level }, cancellationToken);
-                await consolidations.Writer.WriteAsync(new() { Node = node.Lo, Index = index, Box = lo, Level = level }, cancellationToken);
+                await consolidations.Writer.WriteAsync(new() { Node = node.Hi, Index = index, Box = hi, Level = level }, cancellationToken).ConfigureAwait(false);
+                await consolidations.Writer.WriteAsync(new() { Node = node.Lo, Index = index, Box = lo, Level = level }, cancellationToken).ConfigureAwait(false);
             }
             else if (index.Second != 0)
             {
