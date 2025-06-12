@@ -1,6 +1,7 @@
 ﻿using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.IO.Compression;
+using System.Reflection;
 
 namespace TZFinder;
 
@@ -14,6 +15,12 @@ public static class TZLookup
     /// The default file name for the time zone data file.
     /// </summary>
     public const string DataFileName = "TimeZoneData.bin";
+
+    /// <summary>
+    /// The moniker used to indicate that the time zone data should be loaded from an embedded resource.
+    /// The name of the resource must be appended.
+    /// </summary>
+    public const string EmbeddedResourceMoniker = $"/embedded:";
 
     private static readonly Lazy<TimeZoneTree> _timeZoneTree = new(Load);
     private static string? _timeZoneDataPath;
@@ -330,17 +337,29 @@ public static class TZLookup
         executablePath = Environment.ProcessPath;
 #endif
 
-        //Blazor GetCurrentCurrentProcess() fliegt
-        //    probieren EmbeddedResource zu laden
-
-        if ((executablePath ??= Process.GetCurrentProcess().MainModule?.FileName) is not null)
+        if ((executablePath ??= GetProcess()?.MainModule?.FileName) is not null)
         {
             dataPath = Path.Combine(Path.GetDirectoryName(executablePath)!, DataFileName);
         }
 
-        return dataPath is null || !File.Exists(dataPath)
-            ? throw new InvalidOperationException($"Could not find time zone data file{(executablePath is not null ? $" at '{executablePath}'" : "")}. Consider setting {nameof(TimeZoneDataPath)}.")
-            : dataPath;
+        return File.Exists(dataPath)
+            ? dataPath!
+            : Assembly.GetCallingAssembly().GetManifestResourceInfo(DataFileName) is not null
+            ? $"{EmbeddedResourceMoniker}{DataFileName}"
+            : throw new InvalidOperationException($"Time zone data file not found{(executablePath is not null ? $" at '{executablePath}'" : "")}. Consider setting {nameof(TimeZoneDataPath)}.");
+
+        static Process? GetProcess()
+        {
+            try
+            {
+                // Throws in browser
+                return Process.GetCurrentProcess();
+            }
+            catch
+            {
+                return null;
+            }
+        }
     }
 
     private static TimeZoneTree Load()
@@ -350,6 +369,12 @@ public static class TZLookup
         if (_timeZoneDataStream is not null)
         {
             stream = _timeZoneDataStream;
+        }
+        else if (TimeZoneDataPath.StartsWith(EmbeddedResourceMoniker))
+        {
+            string resource = TimeZoneDataPath[EmbeddedResourceMoniker.Length..];
+            stream = Assembly.GetCallingAssembly().GetManifestResourceStream(resource)
+                ?? throw new InvalidOperationException($"Time zone resource not found {resource}.");
         }
         else
         {
