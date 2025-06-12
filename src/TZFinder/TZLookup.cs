@@ -355,6 +355,7 @@ public static class TZLookup
 
         static Process? GetProcess()
         {
+            Exception? _ex = null;
             try
             {
                 // Throws in browser
@@ -362,9 +363,10 @@ public static class TZLookup
             }
             catch (Exception ex)
             {
-                ex.ToString();
-                return null;
+                _ex = ex;
             }
+            _ex.ToString();
+            return null;
         }
     }
 
