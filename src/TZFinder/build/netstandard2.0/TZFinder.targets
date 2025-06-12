@@ -4,8 +4,8 @@
   <PropertyGroup>
 
     <TimeZoneData Condition="'$(TimeZoneData)' == ''">Medium</TimeZoneData>
-    <!-- Conent is not supported in android applications.-->
-    <TimeZoneItem Condition="'$(TimeZoneItem)' == '' and '$(AndroidApplication)' == 'true'">EmbeddedResource</TimeZoneItem>
+    <!-- Conent is not supported and GetEntryAssembly() returns null in android applications. -->
+    <TimeZoneItem Condition="'$(TimeZoneItem)' == '' and '$(AndroidApplication)' == 'true'">AndroidAsset</TimeZoneItem>
     <TimeZoneItem Condition="'$(TimeZoneItem)' == ''">Content</TimeZoneItem>
 
     <_TimeZoneSourceFile Condition="'$(TimeZoneData)' == 'Small'">20_5000_NoEtc_TimeZoneData.bin</_TimeZoneSourceFile>
@@ -34,8 +34,14 @@
     <EmbeddedResource Condition="'$(TimeZoneItem)' == 'EmbeddedResource'"
                       Include="$(MSBuildThisFileDirectory)..\..\data\$(_TimeZoneSourceFile)"
                       Link="$(TimeZoneDirectory)TimeZoneData.bin"
-                      LogicalName="TZFinder.TimeZoneData.bin"/>
+                      LogicalName="TZFinder.TimeZoneData.bin" 
+                      Visible="false" />
 
+    <AndroidAsset Condition="'$(TimeZoneItem)' == 'AndroidAsset'"
+                  Include="$(MSBuildThisFileDirectory)..\..\data\$(_TimeZoneSourceFile)"
+                  Link="$(TimeZoneDirectory)TimeZoneData.bin"
+                  Visible="false" />
+    
   </ItemGroup>
 
   <PropertyGroup>
@@ -49,7 +55,7 @@
     <Error Text="Unknown TimeZoneData '$(TimeZoneData)'"
            Condition="'$(TimeZoneData)' != 'Small' and '$(TimeZoneData)' != 'Medium' and '$(TimeZoneData)' != 'Large' and '$(TimeZoneData)' != 'None'" />
     <Error Text="Unknown TimeZoneItem '$(TimeZoneItem)'"
-           Condition = "'$(TimeZoneItem)' != 'Content' and '$(TimeZoneItem)' != 'EmbeddedResource'" />
+           Condition = "'$(TimeZoneItem)' != 'Content' and '$(TimeZoneItem)' != 'EmbeddedResource' and '$(TimeZoneItem)' != 'AndroidAsset'" />
   </Target>
 
 </Project>
