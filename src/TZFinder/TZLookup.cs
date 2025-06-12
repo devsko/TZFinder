@@ -328,33 +328,16 @@ public static class TZLookup
         });
     }
 
-    private static string GetTimeZoneDataPath()
+    /// <summary>
+    /// Ensures that the time zone tree is loaded asynchronously.
+    /// This method triggers the lazy loading of the time zone data if it has not already been loaded.
+    /// </summary>
+    /// <returns>
+    /// A <see cref="Task"/> that completes when the time zone tree has been loaded.
+    /// </returns>
+    public static Task EnsureLoadedAsync()
     {
-        string? dataPath = null;
-        string? processPath = null;
-
-#if NET
-        processPath = Environment.ProcessPath;
-#else
-        try
-        {
-            // Throws in browser
-            processPath = Process.GetCurrentProcess().MainModule?.FileName;
-        }
-        catch (PlatformNotSupportedException)
-        { }
-#endif
-
-        if (processPath is not null)
-        {
-            dataPath = Path.Combine(Path.GetDirectoryName(processPath)!, DataFileName);
-        }
-
-        return File.Exists(dataPath)
-            ? dataPath!
-            : Assembly.GetEntryAssembly()?.GetManifestResourceInfo(DataFileName) is not null
-            ? $"{EmbeddedResourceMoniker}{DataFileName}"
-            : throw new InvalidOperationException($"Time zone data file not found{(processPath is not null ? $" at '{processPath}'" : "")}. Consider setting {nameof(TimeZoneDataPath)}.");
+        return Task.Run(() => _ = _timeZoneTree.Value);
     }
 
     private static TimeZoneTree Load()
@@ -399,5 +382,34 @@ public static class TZLookup
 
             return TimeZoneTree.Deserialize(new BufferedStream(zip));
         }
+    }
+
+    private static string GetTimeZoneDataPath()
+    {
+        string? dataPath = null;
+        string? processPath = null;
+
+#if NET
+        processPath = Environment.ProcessPath;
+#else
+        try
+        {
+            // Throws in browser
+            processPath = Process.GetCurrentProcess().MainModule?.FileName;
+        }
+        catch (PlatformNotSupportedException)
+        { }
+#endif
+
+        if (processPath is not null)
+        {
+            dataPath = Path.Combine(Path.GetDirectoryName(processPath)!, DataFileName);
+        }
+
+        return File.Exists(dataPath)
+            ? dataPath!
+            : Assembly.GetEntryAssembly()?.GetManifestResourceInfo(DataFileName) is not null
+            ? $"{EmbeddedResourceMoniker}{DataFileName}"
+            : throw new InvalidOperationException($"Time zone data file not found{(processPath is not null ? $" at '{processPath}'" : "")}. Consider setting {nameof(TimeZoneDataPath)}.");
     }
 }
