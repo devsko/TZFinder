@@ -2,9 +2,10 @@
 
 *Get IANA time zone id from geo location.*
 
-![Italy](images/Italy.png)
+<!--
 [![NuGet package](https://img.shields.io/nuget/v/TZFinder.svg)](https://nuget.org/packages/TZFinder)
-[API documentation](https://devsko.github.io/TZFinder/api/TZFinder.html)
+-->
+![Italy](images/Italy.png)
 
 ## Features
 + Based on data from the [Timezone Boundary Builder](https://github.com/evansiroky/timezone-boundary-builder).
