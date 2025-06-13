@@ -75,7 +75,7 @@ The calculation of high-resolution data files is very computationally intensive 
 
 All downloaded and generated files are cached in the `%LocalAppData%\TZFinder` directory. If you encounter any issues, you can delete the entire directory.
 
-To use a custom data file, set `TimeZoneData` to `None` and include the created file as `Content` in your project.
+To use a custom data file, set `TimeZoneData` to `None` and include the created file in your project.
 ```xml
   <PropertyGroup>
     <TimeZoneData>None</TimeZoneData>
@@ -85,6 +85,33 @@ To use a custom data file, set `TimeZoneData` to `None` and include the created 
     <Content Include="TZFinder.TimeZoneData.bin" 
              CopyToOutputDirectory="Always" 
              SkipUnchangedFilesOnCopyAlways="true" />
+
+    <!-- OR -->
+
+    <EmbeddedResource Include="TZFinder.TimeZoneData.bin"
+                      LogicalName="TZFinder.TimeZoneData.bin" />
   </ItemGroup>
 ```
 ### Platforms
+
+TZFinder is compatible with .NET (Core) 2.0 or higher and .NET Framework 4.7.2 or higher and has been tested with all project types that generate .exe assemblies (Console, ASP.NET Core, WinForms, WPF, WinUI 3, UWP Native, Modern UWP).
+
+#### Blazor WASM
+Add this to use TZFinder from a WebAssembly
+```xml
+  <PropertyGroup>
+    <TimeZoneItem>EmbeddedResource</TimeZoneItem>
+  </PropertyGroup>
+```
+#### MAUI
+The data file is automatically included as `MauiAsset`. Run this code before using `TZLookup`.
+```c#
+  TZFinder.TZLookup.TimeZoneDataStream = await FileSystem.OpenAppPackageFileAsync(TZFinder.TZLookup.DataFileName);
+```
+#### Android
+The data file is automatically included as `AndroidAsset`. Run this code before using `TZLookup`.
+```c#
+  TZFinder.TZLookup.TimeZoneDataStream = Assets!.Open(TZFinder.TZLookup.DataFileName, Access.Streaming);
+```
+#### Other Platforms
+Please let me know, if you have issues using TZFinder on other platforms.
