@@ -17,9 +17,14 @@ namespace TZFinder.Builder;
 /// The structure is implemented using the <see cref="System.Runtime.CompilerServices.InlineArrayAttribute"/> to provide efficient, stack-allocated storage.
 /// </para>
 /// </remarks>
-[InlineArray(8)]
+[InlineArray(Length)]
 public struct TimeZoneIndex8
 {
+    /// <summary>
+    ///
+    /// </summary>
+    public const int Length = 6;
+
     private short _value;
 
     /// <summary>
@@ -35,7 +40,7 @@ public struct TimeZoneIndex8
     /// <exception cref="InvalidOperationException">Thrown when the structure is full.</exception>
     public void Add(short index)
     {
-        for (int i = 0; i < 8; i++)
+        for (int i = 0; i < Length; i++)
         {
             if (this[i] == index) return;
             if (this[i] == 0)
