@@ -350,9 +350,10 @@ public static class TZLookup
         }
         else if (TimeZoneDataPath.StartsWith(EmbeddedResourceMoniker, StringComparison.OrdinalIgnoreCase))
         {
+            Assembly? assembly = Assembly.GetEntryAssembly();
             string resource = TimeZoneDataPath[EmbeddedResourceMoniker.Length..];
-            stream = Assembly.GetEntryAssembly()?.GetManifestResourceStream(resource)
-                ?? throw new InvalidOperationException($"Time zone resource not found {resource}.");
+            stream = assembly?.GetManifestResourceStream(resource)
+                ?? throw new InvalidOperationException($"Time zone resource {resource} not found in assembly {assembly?.FullName ?? "unknown"}.");
         }
         else
         {
