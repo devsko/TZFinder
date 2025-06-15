@@ -242,19 +242,16 @@ public sealed partial class TimeZoneContext
 
         async Task ProcessCreationAsync()
         {
-            while (await creations.Reader.WaitToReadAsync(cancellationToken).ConfigureAwait(false))
+            await foreach (Creation creation in creations.Reader.ReadAllAsync(cancellationToken).ConfigureAwait(false))
             {
-                if (creations.Reader.TryRead(out Creation creation))
+                await AddAsync(creation.Node, creation.Index, creation.Ring, creation.Box, creation.Level).ConfigureAwait(false);
+                if (IncrementIndexCreations(creation.Index, -1) == 0)
                 {
-                    await AddAsync(creation.Node, creation.Index, creation.Ring, creation.Box, creation.Level).ConfigureAwait(false);
-                    if (IncrementIndexCreations(creation.Index, -1) == 0)
-                    {
-                        progress.Report(1);
-                    }
-                    if (Interlocked.Decrement(ref totalCreations) == 0)
-                    {
-                        creations.Writer.Complete();
-                    }
+                    progress.Report(1);
+                }
+                if (Interlocked.Decrement(ref totalCreations) == 0)
+                {
+                    creations.Writer.Complete();
                 }
             }
         }
@@ -363,16 +360,13 @@ public sealed partial class TimeZoneContext
         async Task ProcessConsolidationAsync()
         {
             TimeZoneIndex[] indices = new TimeZoneIndex[25];
-            while (await consolidations.Reader.WaitToReadAsync(cancellationToken).ConfigureAwait(false))
+            await foreach (Consolidation consolidation in consolidations.Reader.ReadAllAsync(cancellationToken).ConfigureAwait(false))
             {
-                if (consolidations.Reader.TryRead(out Consolidation consolidation))
+                await ConsolidateAsync(consolidation.Node, consolidation.Index, consolidation.Box, consolidation.Level, indices).ConfigureAwait(false);
+                progress.Report(1);
+                if (Interlocked.Decrement(ref remainingNodes) == 0)
                 {
-                    await ConsolidateAsync(consolidation.Node, consolidation.Index, consolidation.Box, consolidation.Level, indices).ConfigureAwait(false);
-                    progress.Report(1);
-                    if (Interlocked.Decrement(ref remainingNodes) == 0)
-                    {
-                        consolidations.Writer.Complete();
-                    }
+                    consolidations.Writer.Complete();
                 }
             }
         }
