@@ -123,7 +123,7 @@ public static class TZLookup
 #endif
 
 #if NET10_0_OR_GREATER
-        short index = (short)new ReadOnlySpan<string>(_timeZoneTree.Value.TimeZoneIds).IndexOf(timeZoneId, StringComparer.OrdinalIgnoreCase);
+        short index = (short)_timeZoneTree.Value.TimeZoneIds.IndexOf(timeZoneId, StringComparer.OrdinalIgnoreCase);
 #else
         short index = (short)Array.FindIndex(_timeZoneTree.Value.TimeZoneIds, item => string.Equals(item, timeZoneId, StringComparison.OrdinalIgnoreCase));
 #endif
