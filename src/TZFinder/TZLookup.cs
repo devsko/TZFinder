@@ -92,7 +92,7 @@ public static class TZLookup
     }
 
     /// <summary>
-    /// Gets the singleton instance of the <see cref="TimeZoneTree"/> used for time zone lookups.
+    /// Gets the singleton instance of the <see cref="TZFinder.TimeZoneTree"/> used for time zone lookups.
     /// The tree is loaded lazily from the configured data file or stream on first access.
     /// </summary>
     public static TimeZoneTree TimeZoneTree => _timeZoneTree.Value;
@@ -123,7 +123,7 @@ public static class TZLookup
 #endif
 
 #if NET10_0_OR_GREATER
-        short index = (short)MemoryExtensions.IndexOf(_timeZoneTree.Value.TimeZoneIds, timeZoneId, StringComparer.OrdinalIgnoreCase);
+        short index = (short)new ReadOnlySpan<string>(_timeZoneTree.Value.TimeZoneIds).IndexOf(timeZoneId, StringComparer.OrdinalIgnoreCase);
 #else
         short index = (short)Array.FindIndex(_timeZoneTree.Value.TimeZoneIds, item => string.Equals(item, timeZoneId, StringComparison.OrdinalIgnoreCase));
 #endif

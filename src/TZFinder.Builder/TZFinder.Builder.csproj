@@ -5,6 +5,7 @@
     <TargetFramework>net10.0</TargetFramework>
     <PackAsTool>true</PackAsTool>
     <ToolCommandName>tz-build</ToolCommandName>
+    <Description>A tool for creating data files for TZFinder.</Description>
   </PropertyGroup>
 
   <ItemGroup>

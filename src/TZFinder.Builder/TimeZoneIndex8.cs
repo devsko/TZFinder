@@ -14,7 +14,7 @@ namespace TZFinder.Builder;
 /// The structure ensures that each index is unique and provides methods to add new indices and check if the collection is empty.
 /// </para>
 /// <para>
-/// The structure is implemented using the <see cref="System.Runtime.CompilerServices.InlineArrayAttribute"/> to provide efficient, stack-allocated storage.
+/// The structure is implemented using the <see cref="InlineArrayAttribute"/> to provide efficient, stack-allocated storage.
 /// </para>
 /// </remarks>
 [InlineArray(Length)]
