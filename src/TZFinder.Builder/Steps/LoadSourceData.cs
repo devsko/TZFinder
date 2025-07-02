@@ -6,22 +6,12 @@ namespace TZFinder.Builder.Steps;
 /// Represents a conversion step that loads the source data file and creates a <see cref="TimeZoneContext"/>.
 /// This step reads the source file, tracks progress, and loads the time zone context into a resource.
 /// </summary>
-public class LoadSource : ConversionStep<Context>
+public class LoadSourceData(Context context) : ConversionStep<Context>(
+    inputs: [context.SourceFile],
+    outputs: [context.TimeZoneCalculation])
 {
     /// <inheritdoc/>
     public override string Name => "Loading source data";
-
-    /// <inheritdoc/>
-    protected override IEnumerable<IResource> GetInputs(Context context)
-    {
-        yield return context.SourceFile;
-    }
-
-    /// <inheritdoc/>
-    protected override IEnumerable<IResource> GetOutputs(Context context)
-    {
-        yield return context.TimeZoneCalculation;
-    }
 
     /// <inheritdoc/>
     protected override async Task ExecuteAsync(Context context, DateTime timestamp, CancellationToken cancellationToken)

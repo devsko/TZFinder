@@ -9,49 +9,29 @@ namespace TZFinder.Builder.Steps;
 /// <summary>
 /// Represents a conversion step that downloads the time zone boundary file from the timezone-boundary-builder GitHub repository.
 /// </summary>
-public partial class DownloadSource : ConversionStep<Context>
+public partial class DownloadSource(Context context) : ConversionStep<Context>(
+    inputs: [context.DownloadSource],
+    outputs: [context.SourceFile])
 {
     /// <inheritdoc/>
     public override string Name => "Download time zone file";
 
     /// <inheritdoc/>
-    protected override IEnumerable<IResource> GetOutputs(Context context)
-    {
-        yield return context.SourceFile;
-    }
-
-    /// <inheritdoc/>
     protected override async Task ExecuteAsync(Context context, DateTime timestamp, CancellationToken cancellationToken)
     {
-        FileResource sourceFile = context.SourceFile;
+        context.SetTotal(this, context.DownloadSource.Length ?? 0);
 
-        using HttpResponseMessage response = await context.Client.GetAsync(
-            $"https://github.com/{Context.SourceRepository}/releases/download/{context.SourceRelease}/{context.SourceFileName}.zip",
-            HttpCompletionOption.ResponseHeadersRead,
+        await using ZipArchive zip = await ZipArchive.CreateAsync(
+            await context.DownloadSource.DownloadAsync(bytes => context.IncrementProgress(this, bytes), cancellationToken),
+            ZipArchiveMode.Read,
+            leaveOpen: false,
+            entryNameEncoding: null,
             cancellationToken);
+        await using Stream entryStream = await (zip.Entries[0] ?? throw new InvalidOperationException()).OpenAsync(cancellationToken);
+        await using PreliminaryFileStream fileStream = context.SourceFile.OpenCreate(0, timestamp);
 
-        if (!response.IsSuccessStatusCode)
-        {
-            context.Fail(this, $"Download failed with status code {response.StatusCode}");
-        }
-        else
-        {
-            context.SetTotal(this, response.Content.Headers.ContentLength ?? 0);
+        await entryStream.CopyToAsync(fileStream, cancellationToken);
 
-            await using ZipArchive zip = await ZipArchive.CreateAsync(
-                new ProgressStream(
-                    await response.Content.ReadAsStreamAsync(cancellationToken),
-                    bytes => context.IncrementProgress(this, bytes)),
-                ZipArchiveMode.Read, leaveOpen: false, entryNameEncoding: null, cancellationToken);
-
-            ZipArchiveEntry? entry = zip.Entries[0] ?? throw new InvalidOperationException();
-
-            await using PreliminaryFileStream fileStream = sourceFile.OpenCreate(0, timestamp);
-            await using Stream entryStream = await entry.OpenAsync(cancellationToken);
-
-            await entryStream.CopyToAsync(fileStream, cancellationToken);
-
-            fileStream.Persist();
-        }
+        fileStream.Persist();
     }
 }

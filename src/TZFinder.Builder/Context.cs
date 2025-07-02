@@ -19,21 +19,6 @@ public class Context : BuilderContext<Context>
     public const string SourceRepository = "evansiroky/timezone-boundary-builder";
 
     /// <summary>
-    /// Gets the <see cref="HttpClient"/> used for HTTP requests.
-    /// </summary>
-    public required HttpClient Client { get; init; }
-
-    /// <summary>
-    /// Gets the tag name of the latest timezone boundary builder release.
-    /// </summary>
-    public required string SourceRelease { get; init; }
-
-    /// <summary>
-    /// Gets the name of the source file used for time zone data.
-    /// </summary>
-    public required string SourceFileName { get; init; }
-
-    /// <summary>
     /// Gets the maximum depth level for the time zone builder tree.
     /// </summary>
     public required int MaxLevel { get; init; }
@@ -42,6 +27,11 @@ public class Context : BuilderContext<Context>
     /// Gets the minimum distance in meters between consecutive points in a ring.
     /// </summary>
     public required int MinRingDistance { get; init; }
+
+    /// <summary>
+    /// Gets the <see cref="DownloadableResource"/> representing the downloadable source for the time zone data.
+    /// </summary>
+    public required DownloadableResource DownloadSource { get; init; }
 
     /// <summary>
     /// Gets the <see cref="FileResource"/> representing the source file.
@@ -114,39 +104,32 @@ public class Context : BuilderContext<Context>
                 release = latestRelease.GetProperty("tag_name").GetString()!;
             }
 
-            string sourceFileName = includeEtc ? "timezones-with-oceans.geojson" : "timezones.geojson";
-
             string releasePath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "TZFinder", release);
-            Directory.CreateDirectory(releasePath);
-
-            FileResource sourceFile = new(Path.Combine(releasePath, sourceFileName));
+            string sourceFileName = includeEtc ? "timezones-with-oceans.geojson" : "timezones.geojson";
             FileResource timeZoneDataFile = new(Path.Combine(releasePath, $"{maxLevel}_{minRingDistance}_{(includeEtc ? "Etc" : "NoEtc")}_{TZLookup.DataFileName}"));
-            CalculationResource timeZoneCalculation = new(timeZoneDataFile);
 
             Context context = new(cancellationToken)
             {
-                Client = client,
-                SourceRelease = release,
-                SourceFileName = sourceFileName,
+                DownloadSource = new DownloadableResource(new Uri($"https://github.com/{SourceRepository}/releases/download/{release}/{sourceFileName}.zip")),
+                SourceFile = new FileResource(Path.Combine(releasePath, sourceFileName)),
+                TimeZoneDataFile = timeZoneDataFile,
+                TimeZoneCalculation = new CalculationResource(timeZoneDataFile),
                 MaxLevel = maxLevel,
                 MinRingDistance = minRingDistance,
-                SourceFile = sourceFile,
-                TimeZoneDataFile = timeZoneDataFile,
-                TimeZoneCalculation = timeZoneCalculation,
             };
 
             await context.RunAsync(
                 Step<Context>.Sequential("Create time zone data",
                 [
-                    new DownloadSource(),
-                    new LoadSource(),
-                    new CreateTree(),
-                    new ConsolidateTree(),
-                    new SerializeTree(),
+                    new DownloadSource(context),
+                    new LoadSourceData(context),
+                    new CreateTree(context),
+                    new ConsolidateTree(context),
+                    new SerializeTree(context),
                 ]),
                 [
-                    new MemoryInfo(),
-                    new GCTimeInfo(),
+                    new MemoryInfo<Context>(),
+                    new GCTimeInfo<Context>(),
                 ]);
 
             Console.WriteLine();

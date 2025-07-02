@@ -10,25 +10,15 @@ namespace TZFinder.Builder.Steps;
 /// as inputs, and produces a consolidated tree as output. The consolidation process traverses the tree, updating each node's
 /// time zone indices to account for included and excluded regions, and optionally reports progress.
 /// </summary>
-public class ConsolidateTree : ConversionStep<Context>
+public class ConsolidateTree(Context context) : ConversionStep<Context>(
+    inputs: [context.SourceFile],
+    outputs: [context.TimeZoneCalculation])
 {
     /// <inheritdoc/>
     public override string Name => "Consolidating nodes";
 
     /// <inheritdoc/>
     protected override bool ShowProgressAsDataSize => false;
-
-    /// <inheritdoc/>
-    protected override IEnumerable<IResource> GetInputs(Context context)
-    {
-        yield return context.SourceFile;
-    }
-
-    /// <inheritdoc/>
-    protected override IEnumerable<IResource> GetOutputs(Context context)
-    {
-        yield return context.TimeZoneCalculation;
-    }
 
     /// <inheritdoc/>
     protected override async Task ExecuteAsync(Context context, DateTime timestamp, CancellationToken cancellationToken)

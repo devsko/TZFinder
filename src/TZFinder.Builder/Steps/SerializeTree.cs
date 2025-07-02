@@ -8,22 +8,12 @@ namespace TZFinder.Builder.Steps;
 /// This step takes the consolidated <see cref="TimeZoneBuilderTree"/> from the build context and serializes it
 /// to a file at the specified path.
 /// </summary>
-public class SerializeTree : ConversionStep<Context>
+public class SerializeTree(Context context) : ConversionStep<Context>(
+    inputs: [context.SourceFile],
+    outputs: [context.TimeZoneDataFile])
 {
     /// <inheritdoc/>
     public override string Name => "Writing data file";
-
-    /// <inheritdoc/>
-    protected override IEnumerable<IResource> GetInputs(Context context)
-    {
-        yield return context.SourceFile;
-    }
-
-    /// <inheritdoc/>
-    protected override IEnumerable<IResource> GetOutputs(Context context)
-    {
-        yield return context.TimeZoneDataFile;
-    }
 
     /// <inheritdoc/>
     protected override async Task ExecuteAsync(Context context, DateTime timestamp, CancellationToken cancellationToken)
@@ -36,6 +26,7 @@ public class SerializeTree : ConversionStep<Context>
 
         // GZipStream cannot be flushed completely and tries to write to the underlying stream
         // when disposed (happens after Persist() which disposes the file stream).
+        // Thus the GZipStream must be disposed before the file is persisted.
         await using (GZipStream stream = new GZipStream(
             new ProgressStream(
                 file,
