@@ -7,7 +7,7 @@
   </PropertyGroup>
   <ItemGroup>
     <!-- Put repo-specific PackageVersion items in this group. -->
-    <PackageVersion Include="ConsoleAppFramework" Version="5.5.0" />
+    <PackageVersion Include="ConsoleAppFramework" Version="5.7.13" />
     <PackageVersion Include="devsko.Spectre.Builder" Version="0.3.8-preview" />
     <PackageVersion Include="GeoJson.aot" Version="1.0.0" />
     <PackageVersion Include="System.Runtime.CompilerServices.Unsafe" Version="6.1.2" />
