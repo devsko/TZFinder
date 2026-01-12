@@ -4,18 +4,21 @@
   <PropertyGroup>
     <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
     <CentralPackageTransitivePinningEnabled>true</CentralPackageTransitivePinningEnabled>
+    <MicrosoftTestingPlatformVersion>2.0.2</MicrosoftTestingPlatformVersion>
   </PropertyGroup>
   <ItemGroup>
     <!-- Put repo-specific PackageVersion items in this group. -->
-    <PackageVersion Include="ConsoleAppFramework" Version="5.4.1" />
-    <PackageVersion Include="devsko.Spectre.Builder" Version="0.3.1-preview" />
+    <PackageVersion Include="ConsoleAppFramework" Version="5.7.13" />
+    <PackageVersion Include="devsko.Spectre.Builder" Version="0.3.9-preview" />
     <PackageVersion Include="GeoJson.aot" Version="1.0.0" />
     <PackageVersion Include="System.Runtime.CompilerServices.Unsafe" Version="6.1.2" />
   </ItemGroup>
   <ItemGroup Label="Library.Template">
-    <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />
-    <PackageVersion Include="xunit.runner.visualstudio" Version="3.1.1" />
-    <PackageVersion Include="xunit.v3" Version="2.0.3" />
+    <PackageVersion Include="Microsoft.Testing.Extensions.CodeCoverage" Version="18.3.1" />
+    <PackageVersion Include="Microsoft.Testing.Extensions.CrashDump" Version="$(MicrosoftTestingPlatformVersion)" />
+    <PackageVersion Include="Microsoft.Testing.Extensions.HangDump" Version="$(MicrosoftTestingPlatformVersion)" />
+    <PackageVersion Include="Microsoft.Testing.Extensions.TrxReport" Version="$(MicrosoftTestingPlatformVersion)" />
+    <PackageVersion Include="xunit.v3.mtp-v2" Version="3.2.1" />
   </ItemGroup>
   <ItemGroup>
     <!-- Put repo-specific GlobalPackageReference items in this group. -->
@@ -24,7 +27,7 @@
     <GlobalPackageReference Include="CSharpIsNullAnalyzer" Version="0.1.593" />
     <GlobalPackageReference Include="DotNetAnalyzers.DocumentationAnalyzers" Version="1.0.0-beta.59" />
     <!-- The condition works around https://github.com/dotnet/sdk/issues/44951 -->
-    <GlobalPackageReference Include="Nerdbank.GitVersioning" Version="3.7.115" Condition="!('$(TF_BUILD)'=='true' and '$(dotnetformat)'=='true')" />
+    <GlobalPackageReference Include="Nerdbank.GitVersioning" Version="3.9.50" Condition="!('$(TF_BUILD)'=='true' and '$(dotnetformat)'=='true')" />
     <GlobalPackageReference Include="PolySharp" Version="1.15.0" />
     <GlobalPackageReference Include="StyleCop.Analyzers.Unstable" Version="1.2.0.556" />
   </ItemGroup>

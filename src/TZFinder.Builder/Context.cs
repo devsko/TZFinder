@@ -58,9 +58,6 @@ public class Context : BuilderContext<Context>
     /// </summary>
     public TimeZoneBuilderTree? TimeZoneTree { get; set; }
 
-    private Context(CancellationToken cancellationToken) : base(cancellationToken)
-    { }
-
     /// <summary>
     /// Runs the builder.
     /// </summary>
@@ -108,7 +105,7 @@ public class Context : BuilderContext<Context>
             string sourceFileName = includeEtc ? "timezones-with-oceans.geojson" : "timezones.geojson";
             FileResource timeZoneDataFile = new(Path.Combine(releasePath, $"{maxLevel}_{minRingDistance}_{(includeEtc ? "Etc" : "NoEtc")}_{TZLookup.DataFileName}"));
 
-            Context context = new(cancellationToken)
+            Context context = new()
             {
                 DownloadSource = new DownloadableResource(new Uri($"https://github.com/{SourceRepository}/releases/download/{release}/{sourceFileName}.zip")),
                 SourceFile = new FileResource(Path.Combine(releasePath, sourceFileName)),
@@ -130,7 +127,8 @@ public class Context : BuilderContext<Context>
                 [
                     new MemoryInfo<Context>(),
                     new GCTimeInfo<Context>(),
-                ]);
+                ],
+                cancellationToken);
 
             Console.WriteLine();
             if (!force && File.Exists(outputPath))
