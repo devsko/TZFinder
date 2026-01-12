@@ -51,9 +51,9 @@ The raw data for the boundaries comes from the [Timezone Boundary Builder](https
 #### Included data files
 |`TimeZoneData`|`maxLevel`|`minRingDistance`|Size [KB]|GeoHash length|Error [km]|
 |---|---|---|---|---|---|
-|Small|20|5.000|63|4|20|
-|Medium|25|600|310|5|2.4|
-|Large|30|152|1.579|6|0.61|
+|Small|20|5,000|64|4|20|
+|Medium|25|600|313|5|2.4|
+|Large|30|152|1,592|6|0.61|
 #### Creating your own data file
 Install the tool in your project or as global tool and run it with `dotnet tz-build`.
 ```batch

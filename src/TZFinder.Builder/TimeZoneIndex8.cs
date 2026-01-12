@@ -36,16 +36,17 @@ public struct TimeZoneIndex8
     /// <summary>
     /// Adds a time zone index to the structure.
     /// </summary>
-    /// <param name="index">The time zone index to add.</param>
+    /// <param name="value">The time zone index to add.</param>
     /// <exception cref="InvalidOperationException">Thrown when the structure is full.</exception>
-    public void Add(short index)
+    public void Add(short value)
     {
         for (int i = 0; i < Length; i++)
         {
-            if (this[i] == index) return;
-            if (this[i] == 0)
+            ref short index = ref this[i];
+            if (index == value) return;
+            if (index == 0)
             {
-                this[i] = index;
+                index = value;
                 return;
             }
         }
